@@ -1,0 +1,131 @@
+---
+import Layout from "../layouts/Layout.astro";
+import Section from "../components/Section.astro";
+import CtaBand from "../components/CtaBand.astro";
+import { securityPoints } from "../data/site";
+
+const boundaries = [
+  {
+    t: "What the model does",
+    tone: "live",
+    items: [
+      "Reads an unfamiliar file and proposes what each column means",
+      "Classifies a file as an order, payment, settlement or bank export",
+      "Drafts and edits the wording and structure of a pack",
+    ],
+  },
+  {
+    t: "What the model never does",
+    tone: "risk",
+    items: [
+      "Decide that two rows match",
+      "Compute, adjust or round any amount",
+      "Change a figure in a pack, on request or otherwise",
+    ],
+  },
+];
+---
+
+<Layout
+  title="Security"
+  description="How Propel isolates each client's ledger, keeps money handling deterministic, and makes every figure reproducible from the rule and human decision that produced it."
+>
+  <section class="border-b border-hairline bg-fog">
+    <div class="mx-auto max-w-page px-5 py-20 sm:px-8 sm:py-24">
+      <div class="max-w-3xl">
+        <p class="eyebrow">Security and trust</p>
+        <h1 class="display mt-4 text-[38px] sm:text-[52px]">
+          A number you cannot reproduce is not a number
+        </h1>
+        <p class="mt-6 text-[18px] leading-relaxed text-slate">
+          Firms sign what Propel produces, which sets the bar. Client ledgers are isolated by the
+          database rather than by application code, money is handled deterministically, and every
+          figure traces back to the rule and the person that produced it.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <Section tone="paper" eyebrow="Foundations" title="Four things that are not negotiable">
+    <div class="mt-12 grid gap-px overflow-hidden rounded-card border border-hairline bg-hairline sm:grid-cols-2">
+      {
+        securityPoints.map((p) => (
+          <div class="bg-paper p-7">
+            <h3 class="text-[17.5px] font-semibold tracking-[-0.012em]">{p.title}</h3>
+            <p class="mt-2.5 text-[15px] leading-relaxed text-slate">{p.body}</p>
+          </div>
+        ))
+      }
+    </div>
+  </Section>
+
+  <Section
+    tone="mist"
+    eyebrow="The AI boundary"
+    title="Drawn once, in the architecture"
+    lede="This is not a policy that a prompt could talk its way around. The model has no path to a balance, because balances are computed in SQL from stored rows."
+  >
+    <div class="mt-12 grid gap-5 md:grid-cols-2">
+      {
+        boundaries.map((b) => (
+          <div class="surface p-7">
+            <span class:list={["statechip", b.tone === "live" ? "chip-live" : "chip-risk"]}>{b.t}</span>
+            <ul class="mt-5 space-y-3">
+              {b.items.map((i) => (
+                <li class="flex gap-3 border-b border-hairline pb-3 text-[15px] text-slate last:border-0 last:pb-0">
+                  <span class="mt-2 h-1 w-1 shrink-0 rounded-full bg-ash" />
+                  <span>{i}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ))
+      }
+    </div>
+  </Section>
+
+  <Section tone="paper">
+    <div class="grid gap-12 lg:grid-cols-2">
+      <div>
+        <p class="eyebrow">Isolation</p>
+        <h2 class="display mt-3 text-[30px] sm:text-[36px]">Enforced, not intended</h2>
+        <p class="mt-5 text-[16.5px] leading-relaxed text-slate">
+          Each client is a separate ledger behind Postgres row-level security. The application
+          connects as a non-superuser role that cannot bypass the policy, so a query written wrongly
+          returns nothing rather than returning another client's rows.
+        </p>
+        <p class="mt-4 text-[16.5px] leading-relaxed text-slate">
+          Isolation that depends on every developer remembering a WHERE clause is not isolation. This
+          one holds at the database, underneath the application entirely.
+        </p>
+      </div>
+      <div>
+        <p class="eyebrow">Auditability</p>
+        <h2 class="display mt-3 text-[30px] sm:text-[36px]">The trail is the record</h2>
+        <p class="mt-5 text-[16.5px] leading-relaxed text-slate">
+          Every match stores the rule that produced it. Every escalation stores the person who
+          answered it and what they decided. A pack figure drills to the transactions underneath
+          without recomputing anything.
+        </p>
+        <p class="mt-4 text-[16.5px] leading-relaxed text-slate">
+          That means a question in November about an August figure is answered from the stored chain,
+          not by reopening the books and hoping the same answer falls out.
+        </p>
+      </div>
+    </div>
+  </Section>
+
+  <Section tone="fog">
+    <div class="surface mx-auto max-w-3xl p-8 text-center">
+      <p class="eyebrow">Due diligence</p>
+      <h2 class="display mt-3 text-[26px] sm:text-[32px]">Bring your security questionnaire</h2>
+      <p class="mx-auto mt-4 max-w-xl text-[16px] leading-relaxed text-slate">
+        We would rather answer it early than late. Send it ahead of the call and we will walk through
+        data handling, hosting and isolation with the engineer who built it.
+      </p>
+      <a href="/demo" class="pill pill-filled mt-7">Schedule a demo</a>
+    </div>
+  </Section>
+
+  <CtaBand />
+</Layout>

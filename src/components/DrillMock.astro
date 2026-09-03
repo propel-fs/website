@@ -1,0 +1,62 @@
+---
+const chain = [
+  { k: "Pack figure", v: "Net revenue", n: "AED 2,324,900", s: "Section 02, profit and loss" },
+  { k: "Ledger account", v: "4000 Sales", n: "AED 2,324,900", s: "Zoho Books, 31 journal lines" },
+  { k: "Posting", v: "Daily summary journal", n: "31 postings", s: "One per trading day, per channel, exactly as posted before Propel" },
+  { k: "Behind the posting", v: "Order-level detail", n: "95,690 orders", s: "Held in the engine, not in the ledger, so the books look unchanged" },
+  { k: "Source systems", v: "Foodics POS and 3 aggregators", n: "6 outlets", s: "31 POS files, 12 payout files" },
+];
+---
+
+<div class="surface overflow-hidden shadow-lift">
+  <div class="flex flex-wrap items-center gap-3 border-b border-hairline bg-mist px-5 py-3.5">
+    <span class="font-mono text-[11px] tracking-[0.12em] text-ash uppercase">Query trail</span>
+    <span class="ml-auto text-[12.5px] text-slate">Net revenue · July 2026</span>
+  </div>
+
+  <ol class="p-5">
+    {
+      chain.map((c, i) => (
+        <li class="relative flex gap-4 pb-5 last:pb-0">
+          {i < chain.length - 1 && (
+            <span class="absolute top-6 bottom-0 left-[11px] w-px bg-hairline" aria-hidden="true" />
+          )}
+          <span
+            class:list={[
+              "relative z-10 mt-0.5 flex h-[23px] w-[23px] shrink-0 items-center justify-center rounded-full border text-[10px] font-semibold",
+              i === 0
+                ? "border-primary bg-primary text-white"
+                : "border-hairline bg-paper text-ash",
+            ]}
+          >
+            {i + 1}
+          </span>
+          <div class="min-w-0 flex-1">
+            <p class="font-mono text-[10.5px] tracking-[0.1em] text-ash uppercase">{c.k}</p>
+            <div class="mt-1 flex flex-wrap items-baseline gap-x-3 gap-y-0.5">
+              <span class="text-[15px] font-semibold tracking-[-0.01em]">{c.v}</span>
+              <span class="tabular text-[13.5px] font-medium text-primary">{c.n}</span>
+            </div>
+            <p class="mt-0.5 text-[13px] leading-snug text-slate">{c.s}</p>
+          </div>
+        </li>
+      ))
+    }
+  </ol>
+
+  <div class="grid grid-cols-2 gap-px border-t border-hairline bg-hairline sm:grid-cols-4">
+    {
+      [
+        ["Matched to payment", "99.4%"],
+        ["Matched to settlement", "99.8%"],
+        ["Matched to bank", "100%"],
+        ["Needed a person", "41 lines"],
+      ].map(([k, v]) => (
+        <div class="bg-fog px-4 py-3">
+          <p class="text-[10.5px] tracking-[0.03em] text-ash uppercase">{k}</p>
+          <p class="tabular mt-0.5 text-[14px] font-medium">{v}</p>
+        </div>
+      ))
+    }
+  </div>
+</div>

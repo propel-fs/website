@@ -1,0 +1,88 @@
+---
+const clients = [
+  { name: "Dallah Coffee Roasters", vertical: "F&B · UAE", pct: 99.4, open: 3, stage: "Review", tone: "work" },
+  { name: "Cedar Clinic Group", vertical: "Healthcare · UAE", pct: 97.1, open: 6, stage: "Review", tone: "work" },
+  { name: "Zayn Retail Group", vertical: "Retail · UAE", pct: 100, open: 0, stage: "Signed off", tone: "live" },
+  { name: "Rasheed Trading FZC", vertical: "Trading · KSA", pct: 92.6, open: 9, stage: "In progress", tone: "risk" },
+  { name: "Harbour Seafood Co.", vertical: "F&B · Bahrain", pct: 91.4, open: 9, stage: "In progress", tone: "risk" },
+];
+
+const tiles = [
+  { label: "Closes signed off", value: "18", of: "/ 39", note: "August cycle" },
+  { label: "Packs due this week", value: "11", note: "6 already drafted" },
+  { label: "Needs a person", value: "84", note: "items, 6 clients" },
+];
+---
+
+<div class="surface overflow-hidden shadow-lift">
+  <div class="flex items-center gap-2 border-b border-hairline bg-mist px-4 py-3">
+    <span class="h-2.5 w-2.5 rounded-full bg-smoke"></span>
+    <span class="h-2.5 w-2.5 rounded-full bg-smoke"></span>
+    <span class="h-2.5 w-2.5 rounded-full bg-smoke"></span>
+    <span class="ml-3 font-mono text-[11px] tracking-[0.1em] text-ash uppercase">Clients · August</span>
+    <span class="statechip chip-live ml-auto">Updated overnight</span>
+  </div>
+
+  <div class="grid grid-cols-3 gap-px bg-hairline">
+    {
+      tiles.map((t) => (
+        <div class="bg-paper px-4 py-4">
+          <p class="text-[10.5px] font-medium tracking-[0.04em] text-ash uppercase">{t.label}</p>
+          <p class="tabular mt-1.5 text-[24px] font-semibold tracking-[-0.025em] sm:text-[27px]">
+            {t.value}
+            {t.suffix && <span class="text-[14px] text-ash">{t.suffix}</span>}
+            {t.of && <span class="ml-1 text-[13px] font-medium text-ash">{t.of}</span>}
+          </p>
+          <p class="mt-0.5 text-[12px] text-slate">{t.note}</p>
+        </div>
+      ))
+    }
+  </div>
+
+  <table class="w-full border-t border-hairline text-[13px]">
+    <thead>
+      <tr class="bg-fog">
+        <th class="px-4 py-2.5 text-left text-[10.5px] font-medium tracking-[0.04em] text-ash uppercase">Client</th>
+        <th class="hidden px-4 py-2.5 text-left text-[10.5px] font-medium tracking-[0.04em] text-ash uppercase sm:table-cell">Stage</th>
+        <th class="px-4 py-2.5 text-right text-[10.5px] font-medium tracking-[0.04em] text-ash uppercase">Month ready</th>
+        <th class="px-4 py-2.5 text-right text-[10.5px] font-medium tracking-[0.04em] text-ash uppercase">Open</th>
+      </tr>
+    </thead>
+    <tbody>
+      {
+        clients.map((c) => (
+          <tr class="border-t border-hairline">
+            <td class="px-4 py-2.5">
+              <span class="block font-medium text-ink">{c.name}</span>
+              <span class="block text-[11.5px] text-ash">{c.vertical}</span>
+            </td>
+            <td class="hidden px-4 py-2.5 sm:table-cell">
+              <span class={`statechip chip-${c.tone}`}>{c.stage}</span>
+            </td>
+            <td class="px-4 py-2.5 text-right">
+              <span class="flex items-center justify-end gap-2">
+                <span class="hidden h-1.5 w-12 overflow-hidden rounded-full bg-accent sm:block">
+                  <span
+                    class={`block h-full ${c.pct >= 97 ? "bg-primary" : "bg-sienna"}`}
+                    style={`width:${c.pct}%`}
+                  />
+                </span>
+                <span class="tabular text-slate">{c.pct.toFixed(1)}%</span>
+              </span>
+            </td>
+            <td class="px-4 py-2.5 text-right">
+              <span
+                class:list={[
+                  "tabular inline-flex min-w-6 justify-center rounded-md px-1.5 py-0.5 text-[12px] font-semibold",
+                  c.open === 0 ? "bg-accent text-ash" : c.open > 6 ? "bg-[#fdecea] text-destructive" : "bg-accent text-slate",
+                ]}
+              >
+                {c.open}
+              </span>
+            </td>
+          </tr>
+        ))
+      }
+    </tbody>
+  </table>
+</div>

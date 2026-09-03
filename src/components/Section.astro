@@ -1,0 +1,38 @@
+---
+interface Props {
+  eyebrow?: string;
+  title?: string;
+  lede?: string;
+  tone?: "paper" | "mist" | "fog";
+  align?: "left" | "center";
+  class?: string;
+  id?: string;
+}
+
+const {
+  eyebrow,
+  title,
+  lede,
+  tone = "paper",
+  align = "left",
+  class: className = "",
+  id,
+} = Astro.props;
+
+const bg = { paper: "bg-paper", mist: "bg-mist", fog: "bg-fog" }[tone];
+---
+
+<section id={id} class={`${bg} ${className}`}>
+  <div class="mx-auto max-w-page px-5 py-20 sm:px-8 sm:py-24">
+    {
+      (eyebrow || title || lede) && (
+        <div class:list={["max-w-3xl", align === "center" && "mx-auto text-center"]}>
+          {eyebrow && <p class="eyebrow">{eyebrow}</p>}
+          {title && <h2 class="display mt-3 text-[32px] sm:text-[40px]">{title}</h2>}
+          {lede && <p class="mt-5 text-[17px] leading-relaxed text-slate">{lede}</p>}
+        </div>
+      )
+    }
+    <slot />
+  </div>
+</section>

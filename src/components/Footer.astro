@@ -1,0 +1,53 @@
+---
+import LogoMark from "./LogoMark.astro";
+import { nav, site } from "../data/site";
+
+const year = new Date().getFullYear();
+---
+
+<footer class="border-t border-hairline bg-mist">
+  <div class="mx-auto max-w-page px-5 py-14 sm:px-8">
+    <div class="grid gap-10 md:grid-cols-[1.6fr_1fr_1fr]">
+      <div>
+        <div class="flex items-center gap-2.5">
+          <LogoMark class="h-7 w-7" />
+          <span class="display text-[19px] tracking-tight">{site.name}</span>
+        </div>
+        <p class="mt-4 max-w-sm text-[14.5px] leading-relaxed text-slate">
+          The AI close platform for accounting firms. Reconciliation that runs itself, findings that
+          need a partner, and a pack that goes out under your name.
+        </p>
+        <p class="eyebrow mt-6">{site.location}</p>
+      </div>
+
+      <div>
+        <h2 class="text-[13px] font-semibold text-ink">Product</h2>
+        <ul class="mt-4 space-y-2.5 text-[14.5px] text-slate">
+          {
+            nav.map((item) => (
+              <li>
+                <a href={item.href} class="hover:text-ink">
+                  {item.label}
+                </a>
+              </li>
+            ))
+          }
+          <li><a href="/demo" class="hover:text-ink">Schedule a demo</a></li>
+        </ul>
+      </div>
+
+      <div>
+        <h2 class="text-[13px] font-semibold text-ink">Contact</h2>
+        <ul class="mt-4 space-y-2.5 text-[14.5px] text-slate">
+          <li><a href={`mailto:${site.email}`} class="hover:text-ink">{site.email}</a></li>
+          <li><a href="/demo" class="link-arrow">Book a walkthrough →</a></li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="mt-12 flex flex-col gap-3 border-t border-hairline pt-6 text-[13px] text-ash sm:flex-row sm:items-center sm:justify-between">
+      <p>© {year} {site.name}. All rights reserved.</p>
+      <p class="font-mono text-[11px] tracking-[0.14em] uppercase">Built in Dubai for the GCC</p>
+    </div>
+  </div>
+</footer>

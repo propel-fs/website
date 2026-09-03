@@ -1,0 +1,284 @@
+---
+import Layout from "../layouts/Layout.astro";
+import Section from "../components/Section.astro";
+import CtaBand from "../components/CtaBand.astro";
+import CockpitMock from "../components/CockpitMock.astro";
+import FindingMock from "../components/FindingMock.astro";
+import DrillMock from "../components/DrillMock.astro";
+import WorkspaceMock from "../components/WorkspaceMock.astro";
+import PackMock from "../components/PackMock.astro";
+import { clientGets, faqs, heroStats, personas, problems, workspaceTabs } from "../data/site";
+---
+
+<Layout>
+  <section class="relative overflow-hidden border-b border-hairline bg-fog">
+    <div class="grid-bg grid-fade absolute inset-0 opacity-70" aria-hidden="true"></div>
+    <div
+      class="absolute -top-40 left-1/2 h-[420px] w-[820px] -translate-x-1/2 rounded-full bg-primary/8 blur-3xl"
+      aria-hidden="true"
+    >
+    </div>
+
+    <div class="relative mx-auto max-w-page px-5 pt-20 pb-16 sm:px-8 sm:pt-24 sm:pb-20">
+      <div class="mx-auto max-w-3xl text-center">
+        <span class="statechip chip-work">Built in Dubai for GCC accounting firms</span>
+        <h1 class="display mt-6 text-[40px] sm:text-[58px]">
+          Give every client a finance function,<br class="hidden sm:block" /> not a filing service
+        </h1>
+        <p class="mx-auto mt-6 max-w-2xl text-[18px] leading-relaxed text-slate">
+          Propel gives your firm a workspace for every client: their files, their numbers, the
+          findings that need a partner, and a monthly pack that goes out under your name. The month
+          closes itself, so your people spend it advising instead of assembling.
+        </p>
+        <div class="mt-9 flex flex-col items-center justify-center gap-3 sm:flex-row">
+          <a href="/demo" class="pill pill-filled w-full sm:w-auto">Schedule a demo</a>
+          <a href="/platform" class="pill pill-ghost w-full sm:w-auto">See how it works</a>
+        </div>
+      </div>
+
+      <div class="relative mx-auto mt-16 max-w-5xl">
+        <CockpitMock />
+      </div>
+
+      <dl class="mx-auto mt-14 grid max-w-4xl gap-8 sm:grid-cols-3">
+        {
+          heroStats.map((s) => (
+            <div class="text-center">
+              <dt class="display tabular text-[34px] text-primary">{s.value}</dt>
+              <dd class="mx-auto mt-1.5 max-w-[26ch] text-[14px] leading-snug text-slate">{s.label}</dd>
+            </div>
+          ))
+        }
+      </dl>
+    </div>
+  </section>
+
+  <Section
+    tone="paper"
+    eyebrow="The problem"
+    title="Clients do not want a report. They want to know what to do."
+    lede="Compliance work fills the month, and the advice that would actually earn a higher fee never gets started. Not because the firm cannot give it, but because nobody has the hours left."
+  >
+    <div class="mt-12 grid gap-px overflow-hidden rounded-card border border-hairline bg-hairline sm:grid-cols-2">
+      {
+        problems.map((p) => (
+          <div class="bg-paper p-7">
+            <h3 class="text-[17px] font-semibold tracking-[-0.01em]">{p.title}</h3>
+            <p class="mt-2.5 text-[15px] leading-relaxed text-slate">{p.body}</p>
+          </div>
+        ))
+      }
+    </div>
+  </Section>
+
+  <Section
+    tone="mist"
+    eyebrow="The deliverable"
+    title="What lands on your client's desk"
+    lede="Not a trial balance. A pack with your firm's name on it, the findings that need a decision, and a straight path from any figure to the transaction behind it."
+  >
+    <div class="mt-12 grid items-start gap-10 lg:grid-cols-[1fr_1.05fr]">
+      <div>
+        <div class="space-y-7">
+          {
+            clientGets.map((c, i) => (
+              <div class="flex gap-4">
+                <span class="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-accent font-mono text-[11px] font-semibold text-primary">
+                  {i + 1}
+                </span>
+                <div>
+                  <h3 class="text-[17.5px] font-semibold tracking-[-0.012em]">{c.title}</h3>
+                  <p class="mt-2 text-[15px] leading-relaxed text-slate">{c.body}</p>
+                </div>
+              </div>
+            ))
+          }
+        </div>
+        <a href="/platform" class="link-arrow mt-8 inline-flex text-[15.5px]">
+          See what goes into a pack →
+        </a>
+      </div>
+      <PackMock />
+    </div>
+  </Section>
+
+  <Section
+    tone="paper"
+    eyebrow="The client workspace"
+    title="One place per client, from their files to their pack"
+    lede="Pick a client and everything about their month is in one workspace. No hunting through folders, no rebuilding last month's working, no asking who has the latest file."
+  >
+    <div class="mt-12 grid items-start gap-10 lg:grid-cols-[1.05fr_1fr]">
+      <WorkspaceMock />
+      <div class="divide-y divide-hairline">
+        {
+          workspaceTabs.map((w) => (
+            <div class="py-4 first:pt-0 last:pb-0">
+              <h3 class="text-[16px] font-semibold">{w.tab}</h3>
+              <p class="mt-1.5 text-[14.5px] leading-relaxed text-slate">{w.body}</p>
+            </div>
+          ))
+        }
+      </div>
+    </div>
+  </Section>
+
+  <Section
+    tone="mist"
+    eyebrow="Findings"
+    title="The month ends with something worth a partner's time"
+    lede="Once the numbers hold together, Propel surfaces what actually changed: a take rate that drifted off contract, revenue with no cash against it, a cost line outside standard for a fourth month running."
+  >
+    <div class="mt-12 grid items-center gap-12 lg:grid-cols-2">
+      <FindingMock />
+      <div>
+        <ul class="space-y-3.5">
+          {
+            [
+              "Grouped by liquidity, profitability and growth",
+              "Every finding carries the evidence that produced it",
+              "Each one offers the choices open to you, not an instruction",
+              "A decision carries straight through into the client's pack",
+            ].map((t) => (
+              <li class="flex gap-3 text-[15.5px] text-slate">
+                <svg class="mt-1 h-4 w-4 shrink-0 text-moss" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                  <path
+                    fill-rule="evenodd"
+                    d="M16.7 5.3a1 1 0 0 1 0 1.4l-7.5 7.5a1 1 0 0 1-1.4 0L3.3 9.7a1 1 0 1 1 1.4-1.4l3.8 3.8 6.8-6.8a1 1 0 0 1 1.4 0Z"
+                    clip-rule="evenodd"
+                  />
+                </svg>
+                <span>{t}</span>
+              </li>
+            ))
+          }
+        </ul>
+        <p class="mt-7 text-[15px] leading-relaxed text-slate">
+          This is the conversation a client remembers, and the one that justifies a retainer rather
+          than a bookkeeping fee.
+        </p>
+      </div>
+    </div>
+  </Section>
+
+  <Section
+    tone="paper"
+    eyebrow="Traceability"
+    title="Every number walks down to the transaction behind it"
+    lede="A pack figure is not an assertion. It is the top of a chain your team can follow in front of the client, all the way to the order that produced it."
+  >
+    <div class="mt-12 grid items-start gap-12 lg:grid-cols-[1fr_1.05fr]">
+      <div>
+        <p class="text-[16px] leading-relaxed text-slate">
+          Every step is a stored record, not a recalculation. That means the answer given in November
+          about an August figure is the same answer the pack gave in August, and a reviewer can see
+          exactly how it was reached.
+        </p>
+        <p class="mt-4 text-[16px] leading-relaxed text-slate">
+          It also means the order-level detail lives in the engine rather than in the client's ledger,
+          so their books look exactly as they always did.
+        </p>
+        <div class="surface mt-8 p-5">
+          <p class="eyebrow">The assistant boundary</p>
+          <p class="mt-2.5 text-[15px] leading-relaxed text-slate">
+            It edits the pack, its wording and its structure. Ask it to change a figure and it refuses,
+            and shows you where the number came from instead. That refusal is what lets a licensed
+            firm sign the output.
+          </p>
+        </div>
+      </div>
+      <DrillMock />
+    </div>
+  </Section>
+
+  <Section
+    tone="mist"
+    eyebrow="Who it serves"
+    title="One platform, three jobs done"
+    lede="From the files a client drops to the pack that lands in their inbox, every role in the firm works from the same place."
+  >
+    <div class="mt-12 grid gap-5 lg:grid-cols-3">
+      {
+        personas.map((p) => (
+          <div class="surface flex flex-col p-7">
+            <span class="statechip chip-work self-start">{p.role}</span>
+            <h3 class="mt-4 text-[20px] font-semibold tracking-[-0.015em]">{p.line}</h3>
+            <p class="mt-2.5 text-[15px] leading-relaxed text-slate">{p.body}</p>
+            <ul class="mt-5 space-y-2 border-t border-hairline pt-4">
+              {p.points.map((pt) => (
+                <li class="flex gap-2.5 text-[14px] text-slate">
+                  <span class="mt-2 h-1 w-1 shrink-0 rounded-full bg-primary" />
+                  <span>{pt}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ))
+      }
+    </div>
+  </Section>
+
+  <section class="bg-ink">
+    <div class="mx-auto max-w-page px-5 py-20 sm:px-8 sm:py-24">
+      <div class="grid gap-12 lg:grid-cols-[1fr_1fr] lg:items-center">
+        <div>
+          <p class="eyebrow text-white/45">The engine underneath</p>
+          <h2 class="display mt-3 text-[32px] text-white sm:text-[40px]">
+            None of it works unless the numbers do
+          </h2>
+          <p class="mt-5 text-[17px] leading-relaxed text-white/65">
+            Every pack, finding and drill path rests on a reconciliation engine that folds each
+            client's sources into one cumulative ledger and matches both sides deterministically.
+            It runs overnight, and you only meet it when something genuinely needs a person.
+          </p>
+          <a href="/platform" class="link-arrow mt-7 inline-flex text-[15.5px] text-primary">
+            See how the engine works →
+          </a>
+        </div>
+
+        <div class="grid gap-px overflow-hidden rounded-card border border-white/10 bg-white/10 sm:grid-cols-2">
+          {
+            [
+              ["Deterministic", "Money, dates and matching are SQL. A model never writes a number."],
+              ["Cumulative", "A July payout still settles a June order, because the book stays open."],
+              ["Explainable", "Every match stores the rule that fired and the person who confirmed it."],
+              ["Self-clearing", "Only genuine ambiguity is escalated. The rest closes without you."],
+            ].map(([t, b]) => (
+              <div class="bg-ink p-6">
+                <h3 class="text-[15.5px] font-semibold text-white">{t}</h3>
+                <p class="mt-1.5 text-[14px] leading-relaxed text-white/55">{b}</p>
+              </div>
+            ))
+          }
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <Section tone="fog" eyebrow="Questions" title="What firms ask first" align="center">
+    <div class="mx-auto mt-12 max-w-3xl divide-y divide-hairline overflow-hidden rounded-card border border-hairline bg-paper">
+      {
+        faqs.map((f) => (
+          <details class="group">
+            <summary class="flex cursor-pointer list-none items-center gap-4 px-6 py-5 text-[16px] font-medium [&::-webkit-details-marker]:hidden">
+              <span class="flex-1">{f.q}</span>
+              <svg
+                class="h-4 w-4 shrink-0 text-ash transition-transform group-open:rotate-45"
+                viewBox="0 0 20 20"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+              >
+                <path d="M10 4v12M4 10h12" />
+              </svg>
+            </summary>
+            <p class="px-6 pb-5 text-[15px] leading-relaxed text-slate">{f.a}</p>
+          </details>
+        ))
+      }
+    </div>
+  </Section>
+
+  <CtaBand />
+</Layout>

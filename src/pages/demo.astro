@@ -1,0 +1,191 @@
+---
+import Layout from "../layouts/Layout.astro";
+import { site } from "../data/site";
+
+const endpoint = import.meta.env.PUBLIC_FORM_ENDPOINT ?? "";
+
+const promises = [
+  "A live reconciliation on files you bring, not a canned dataset",
+  "The exception queue your team would actually work",
+  "A finished pack with the query trail behind every figure",
+  "A straight answer on what is live today and what is still being built",
+];
+
+const fields = [
+  { id: "name", label: "Full name", type: "text", autocomplete: "name", required: true },
+  { id: "email", label: "Work email", type: "email", autocomplete: "email", required: true },
+  { id: "firm", label: "Firm", type: "text", autocomplete: "organization", required: true },
+  { id: "phone", label: "Phone", type: "tel", autocomplete: "tel", required: false },
+];
+---
+
+<Layout
+  title="Schedule a demo"
+  description="Book a thirty minute walkthrough of Propel. Bring one client's month and we will reconcile it live."
+>
+  <section class="border-b border-hairline bg-fog">
+    <div class="mx-auto grid max-w-page gap-14 px-5 py-16 sm:px-8 sm:py-20 lg:grid-cols-[1fr_1.05fr]">
+      <div>
+        <p class="eyebrow">Schedule a demo</p>
+        <h1 class="display mt-4 text-[36px] sm:text-[46px]">
+          Thirty minutes. No slide deck.
+        </h1>
+        <p class="mt-6 text-[17.5px] leading-relaxed text-slate">
+          Bring one client's month, messy files and all. We will run it end to end on the call so you
+          can judge Propel on your own book rather than on a demo dataset.
+        </p>
+
+        <ul class="mt-9 space-y-4">
+          {
+            promises.map((p) => (
+              <li class="flex gap-3 text-[15.5px] text-slate">
+                <svg class="mt-1 h-4 w-4 shrink-0 text-moss" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                  <path
+                    fill-rule="evenodd"
+                    d="M16.7 5.3a1 1 0 0 1 0 1.4l-7.5 7.5a1 1 0 0 1-1.4 0L3.3 9.7a1 1 0 1 1 1.4-1.4l3.8 3.8 6.8-6.8a1 1 0 0 1 1.4 0Z"
+                    clip-rule="evenodd"
+                  />
+                </svg>
+                <span>{p}</span>
+              </li>
+            ))
+          }
+        </ul>
+
+        <div class="mt-10 rounded-card border border-hairline bg-paper p-5">
+          <p class="font-mono text-[11px] tracking-[0.12em] text-ash uppercase">Prefer email</p>
+          <a href={`mailto:${site.email}`} class="link-arrow mt-2 inline-flex text-[15.5px]">
+            {site.email} →
+          </a>
+        </div>
+      </div>
+
+      <div class="surface p-6 shadow-lift sm:p-8">
+        <form id="demoForm" method="post" action={endpoint} novalidate>
+          <div class="grid gap-5 sm:grid-cols-2">
+            {
+              fields.map((f) => (
+                <label class="block">
+                  <span class="block text-[13.5px] font-medium">
+                    {f.label}
+                    {!f.required && <span class="ml-1.5 font-normal text-ash">optional</span>}
+                  </span>
+                  <input
+                    id={f.id}
+                    name={f.id}
+                    type={f.type}
+                    autocomplete={f.autocomplete}
+                    required={f.required}
+                    class="field mt-1.5"
+                  />
+                </label>
+              ))
+            }
+
+            <label class="block sm:col-span-2">
+              <span class="block text-[13.5px] font-medium">How many clients does your firm serve?</span>
+              <select
+                id="size"
+                name="size"
+                class="field mt-1.5"
+              >
+                <option value="">Select a range</option>
+                <option>Under 50</option>
+                <option>50 to 200</option>
+                <option>200 to 500</option>
+                <option>Over 500</option>
+              </select>
+            </label>
+
+            <label class="block sm:col-span-2">
+              <span class="block text-[13.5px] font-medium">
+                What does the close look like today?
+                <span class="ml-1.5 font-normal text-ash">optional</span>
+              </span>
+              <textarea
+                id="message"
+                name="message"
+                rows="4"
+                placeholder="Which systems the files come from, where the time goes, anything you would want to see reconciled on the call."
+                class="field mt-1.5"
+              ></textarea>
+            </label>
+          </div>
+
+          <input type="text" name="_company" tabindex="-1" autocomplete="off" class="hidden" aria-hidden="true" />
+
+          <button type="submit" class="pill pill-filled mt-7 w-full">Schedule a demo</button>
+
+          <p id="formError" class="mt-4 hidden text-[14px] text-destructive" role="alert"></p>
+          <p class="mt-4 text-[13px] leading-relaxed text-ash">
+            We use this only to arrange the call. No newsletter, no sequence, no sharing it on.
+          </p>
+        </form>
+
+        <div id="demoDone" class="hidden py-10 text-center" role="status">
+          <span class="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-sage text-moss">
+            <svg class="h-6 w-6" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+              <path
+                fill-rule="evenodd"
+                d="M16.7 5.3a1 1 0 0 1 0 1.4l-7.5 7.5a1 1 0 0 1-1.4 0L3.3 9.7a1 1 0 1 1 1.4-1.4l3.8 3.8 6.8-6.8a1 1 0 0 1 1.4 0Z"
+                clip-rule="evenodd"
+              />
+            </svg>
+          </span>
+          <h2 class="display mt-5 text-[24px]">Request received</h2>
+          <p class="mx-auto mt-3 max-w-sm text-[15.5px] leading-relaxed text-slate">
+            We will reply within one working day with a time. If you have a client month you want run
+            on the call, send the files across beforehand.
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+</Layout>
+
+<script>
+  const form = document.getElementById("demoForm") as HTMLFormElement | null;
+  const done = document.getElementById("demoDone");
+  const error = document.getElementById("formError");
+
+  form?.addEventListener("submit", async (event) => {
+    if (!form.reportValidity()) {
+      event.preventDefault();
+      return;
+    }
+    if (!form.action) {
+      event.preventDefault();
+      error?.classList.remove("hidden");
+      if (error) {
+        error.textContent =
+          "This form is not connected yet. Set PUBLIC_FORM_ENDPOINT, or email us directly.";
+      }
+      return;
+    }
+
+    event.preventDefault();
+    const button = form.querySelector("button[type=submit]") as HTMLButtonElement | null;
+    if (button) {
+      button.disabled = true;
+      button.textContent = "Sending...";
+    }
+
+    try {
+      const response = await fetch(form.action, {
+        method: "POST",
+        body: new FormData(form),
+        headers: { Accept: "application/json" },
+      });
+      if (!response.ok) throw new Error(String(response.status));
+      form.classList.add("hidden");
+      done?.classList.remove("hidden");
+    } catch {
+      error?.classList.remove("hidden");
+      if (error) error.textContent = "Something went wrong. Please email us instead.";
+      if (button) {
+        button.disabled = false;
+        button.textContent = "Schedule a demo";
+      }
+    }
+  });
+</script>

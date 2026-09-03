@@ -1,0 +1,161 @@
+---
+import Layout from "../layouts/Layout.astro";
+import Section from "../components/Section.astro";
+import CtaBand from "../components/CtaBand.astro";
+import CockpitMock from "../components/CockpitMock.astro";
+import { personas } from "../data/site";
+
+const economics = [
+  {
+    t: "Your capacity stops scaling with headcount",
+    b: "Recurring compliance work grows one client at a time, and so does the team doing it. Propel takes the reconciliation load off that curve so the next twenty clients do not need the next four hires.",
+  },
+  {
+    t: "The work moves up the value chain",
+    b: "Your people stop matching rows and start reviewing findings. The same staff month produces advisory output rather than data entry, which is the work a client will pay more for.",
+  },
+  {
+    t: "The pack becomes the product",
+    b: "A branded monthly pack with findings and a sign-off block is something a client notices. It is also the natural anchor for a higher retainer than bookkeeping alone.",
+  },
+];
+
+const rollout = [
+  {
+    n: "Week 1",
+    t: "Two clients, end to end",
+    b: "We take two representative clients, connect their sources and confirm the mapping profiles together. You see a full reconciled month on books you already know.",
+  },
+  {
+    n: "Week 2 to 4",
+    t: "A pilot cycle",
+    b: "Run a real close on those clients alongside your existing process. Compare the exceptions Propel raised against what your team found by hand.",
+  },
+  {
+    n: "Month 2",
+    t: "Roll the book across",
+    b: "Clients are onboarded in batches by ledger and vertical, because similar clients share mapping profiles. The profiles you confirmed in week one carry forward.",
+  },
+];
+
+const gcc = [
+  ["PDF bank statements", "Parsed per bank template rather than assuming a CSV export that does not exist."],
+  ["Portals with no API", "Aggregator and acquirer files drop in by folder or email, which is how they actually arrive."],
+  ["Mixed ledgers", "Zoho Books live, Xero in QA. Tally and QuickBooks clients run as a file drop and reconcile identically."],
+  ["Multi-currency books", "AED, SAR, BHD and QAR across one firm-wide view, each client in their own reporting currency."],
+];
+---
+
+<Layout
+  title="For firms"
+  description="Propel is built for accounting firms: one view of the whole book, reconciliation that clears itself overnight, and a branded monthly pack your firm signs."
+>
+  <section class="border-b border-hairline bg-fog">
+    <div class="mx-auto max-w-page px-5 py-20 sm:px-8 sm:py-24">
+      <div class="grid items-center gap-14 lg:grid-cols-[1.05fr_1fr]">
+        <div>
+          <p class="eyebrow">For accounting firms</p>
+          <h1 class="display mt-4 text-[38px] sm:text-[52px]">
+            Serve more clients, better, without hiring for it
+          </h1>
+          <p class="mt-6 text-[18px] leading-relaxed text-slate">
+            A firm layer on top of the reconciliation engine: the whole book in one view, every
+            client's month clearing itself overnight, and a pack that goes out under your brand with
+            findings a partner can actually talk about.
+          </p>
+          <div class="mt-9 flex flex-col gap-3 sm:flex-row">
+            <a href="/demo" class="pill pill-filled">Schedule a demo</a>
+            <a href="/platform" class="pill pill-ghost">See the platform</a>
+          </div>
+        </div>
+        <CockpitMock />
+      </div>
+    </div>
+  </section>
+
+  <Section
+    tone="paper"
+    eyebrow="The firm case"
+    title="Reconciliation is the constraint on everything above it"
+    lede="No firm wins work on the quality of its matching. But until the book is reconciled, nobody can trust the numbers enough to advise on them, and the month is already gone."
+  >
+    <div class="mt-12 grid gap-5 md:grid-cols-3">
+      {
+        economics.map((e) => (
+          <div class="surface p-7">
+            <h3 class="text-[17.5px] font-semibold tracking-[-0.012em]">{e.t}</h3>
+            <p class="mt-3 text-[15px] leading-relaxed text-slate">{e.b}</p>
+          </div>
+        ))
+      }
+    </div>
+  </Section>
+
+  <Section
+    tone="mist"
+    eyebrow="Inside the firm"
+    title="Everyone works from the same reconciled ledger"
+  >
+    <div class="mt-12 grid gap-5 lg:grid-cols-3">
+      {
+        personas.map((p) => (
+          <div class="surface flex flex-col p-7">
+            <span class="statechip chip-work self-start">{p.role}</span>
+            <h3 class="mt-4 text-[20px] font-semibold tracking-[-0.015em]">{p.line}</h3>
+            <p class="mt-2.5 text-[15px] leading-relaxed text-slate">{p.body}</p>
+            <ul class="mt-5 space-y-2 border-t border-hairline pt-4">
+              {p.points.map((pt) => (
+                <li class="flex gap-2.5 text-[14px] text-slate">
+                  <span class="mt-2 h-1 w-1 shrink-0 rounded-full bg-primary" />
+                  <span>{pt}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ))
+      }
+    </div>
+  </Section>
+
+  <Section
+    tone="paper"
+    eyebrow="Built for the region"
+    title="For how the GCC actually pays"
+    lede="A platform designed around a clean bank API is a platform designed for somewhere else. Propel is built for the files firms in the Gulf are actually sent."
+  >
+    <div class="mt-12 grid gap-px overflow-hidden rounded-card border border-hairline bg-hairline sm:grid-cols-2">
+      {
+        gcc.map(([t, b]) => (
+          <div class="bg-paper p-7">
+            <h3 class="text-[16.5px] font-semibold">{t}</h3>
+            <p class="mt-2 text-[14.5px] leading-relaxed text-slate">{b}</p>
+          </div>
+        ))
+      }
+    </div>
+  </Section>
+
+  <Section
+    tone="mist"
+    eyebrow="Getting started"
+    title="Two clients first, then the book"
+    lede="Nobody moves a practice onto a new platform on a promise. The pilot is designed so you can check Propel against work your team has already done by hand."
+  >
+    <div class="mt-12 grid gap-5 md:grid-cols-3">
+      {
+        rollout.map((r) => (
+          <div class="surface p-7">
+            <span class="font-mono text-[11px] tracking-[0.12em] text-primary uppercase">{r.n}</span>
+            <h3 class="mt-3 text-[18px] font-semibold tracking-[-0.015em]">{r.t}</h3>
+            <p class="mt-2.5 text-[15px] leading-relaxed text-slate">{r.b}</p>
+          </div>
+        ))
+      }
+    </div>
+  </Section>
+
+  <CtaBand
+    title="Start with the client that gives you the most trouble"
+    body="The messiest book in your practice is the best test. Bring it to the call and we will run it end to end."
+  />
+</Layout>

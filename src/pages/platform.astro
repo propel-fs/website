@@ -1,0 +1,271 @@
+---
+import Layout from "../layouts/Layout.astro";
+import Section from "../components/Section.astro";
+import CtaBand from "../components/CtaBand.astro";
+import { capabilities, differentiators, steps } from "../data/site";
+
+const layers = [
+  {
+    code: "L1",
+    name: "Order to payment",
+    body: "The clean case. A payment carries the order reference and the amounts agree within tolerance.",
+  },
+  {
+    code: "L2",
+    name: "Payment to settlement",
+    body: "Gateways settle in batches, net of fees and tax. One payout is decomposed back to the individual payments inside it.",
+  },
+  {
+    code: "L3",
+    name: "Settlement to bank",
+    body: "The payout is joined to the credit that actually landed, with the clearing lag and any bank charge accounted for.",
+  },
+  {
+    code: "L4",
+    name: "Residual and inference",
+    body: "What is left is matched on amount, date window and behaviour. Anything genuinely ambiguous is escalated rather than guessed.",
+  },
+];
+
+const exceptions = [
+  ["missing_payment", "An order that was never paid for"],
+  ["unlinked_payment", "Money in with no order to attach it to"],
+  ["unmatched_receipt", "A bank credit with no settlement behind it"],
+  ["authorized_not_captured", "An authorisation that never became a capture"],
+  ["orphan_refund", "A refund with no original sale"],
+  ["chargeback", "Money reversed after the fact"],
+];
+
+const packSections = [
+  ["01", "How the month went", "The headline movement, with every figure clickable down to its source rows."],
+  ["02", "Things needing your attention", "The findings, carried straight through from the Insights layer with their evidence."],
+  ["03", "Sign-off", "Maker, checker, approver. Named people, dated, on the document itself."],
+  ["04", "Basis of preparation", "What was estimated, what was excluded, and what the numbers should be read against."],
+];
+---
+
+<Layout
+  title="Platform"
+  description="How Propel works: ingestion by mapping profile, four deterministic match layers, a categorised exception queue, findings, and a branded monthly pack with a full query trail."
+>
+  <section class="border-b border-hairline bg-fog">
+    <div class="mx-auto max-w-page px-5 py-20 sm:px-8 sm:py-24">
+      <div class="max-w-3xl">
+        <p class="eyebrow">Platform</p>
+        <h1 class="display mt-4 text-[38px] sm:text-[52px]">
+          The model reads the files. The maths stays deterministic.
+        </h1>
+        <p class="mt-6 text-[18px] leading-relaxed text-slate">
+          Propel performs schema inference with a model, because reading an unfamiliar file is exactly
+          what models are good at. Everything involving money, dates or matching is deterministic SQL,
+          because a balance that changes between two runs is not a balance.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <Section
+    tone="paper"
+    eyebrow="End to end"
+    title="Four steps, and only one of them needs you"
+    lede="Propel folds every source into one cumulative ledger, matches both sides deterministically, and hands your team a queue instead of a spreadsheet."
+  >
+    <div class="mt-12 grid gap-5 md:grid-cols-2">
+      {
+        steps.map((s) => (
+          <div class="surface flex flex-col p-7">
+            <span class="font-mono text-[12px] font-medium tracking-[0.12em] text-primary">{s.n}</span>
+            <h3 class="mt-3 text-[19px] font-semibold tracking-[-0.015em]">{s.title}</h3>
+            <p class="mt-2.5 text-[15px] leading-relaxed text-slate">{s.body}</p>
+            <div class="mt-5 flex flex-wrap gap-2 border-t border-hairline pt-4">
+              {s.chips.map((c) => (
+                <span class="rounded-md bg-mist px-2.5 py-1 font-mono text-[11px] text-slate">{c}</span>
+              ))}
+            </div>
+          </div>
+        ))
+      }
+    </div>
+  </Section>
+
+  <Section
+    tone="mist"
+    eyebrow="01 · Ingestion"
+    title="A new source is configuration, not an engineering ticket"
+    lede="Files arrive by folder or email drop, or through a connected feed. Propel infers what the file is and what each column means from the header and a sample. A person confirms it once, and the profile is versioned and saved."
+  >
+    <div class="mt-12 grid gap-5 md:grid-cols-3">
+      {
+        [
+          {
+            t: "Classified on arrival",
+            b: "Every file is identified as an order, payment, settlement or bank file before anything is read into the ledger.",
+          },
+          {
+            t: "Mapped by inference",
+            b: "Column names, date formats, amount and sign conventions are proposed automatically, then confirmed by a human once.",
+          },
+          {
+            t: "Never inferred twice",
+            b: "The profile is stored against the source. The same file shape from the same provider is mapped instantly next month.",
+          },
+        ].map((x) => (
+          <div class="surface p-7">
+            <h3 class="text-[17px] font-semibold tracking-[-0.01em]">{x.t}</h3>
+            <p class="mt-2.5 text-[15px] leading-relaxed text-slate">{x.b}</p>
+          </div>
+        ))
+      }
+    </div>
+    <p class="mt-6 text-[14px] text-ash">
+      Aggregator portals and most GCC banks have no API, so file drop is a first-class path rather than
+      a fallback.
+    </p>
+  </Section>
+
+  <Section
+    tone="paper"
+    eyebrow="02 · Reconciliation"
+    title="Four match layers over the whole open book"
+    lede="Matching is not row to row. A single payout can cover dozens of orders, net of commission, delivery, processing and reserve. Propel works down through four layers, and every import re-matches everything still open."
+  >
+    <div class="mt-12 overflow-hidden rounded-card border border-hairline bg-paper">
+      {
+        layers.map((l, i) => (
+          <div
+            class:list={[
+              "flex flex-col gap-3 p-6 sm:flex-row sm:items-center sm:gap-6",
+              i > 0 && "border-t border-hairline",
+            ]}
+          >
+            <span class="w-12 shrink-0 rounded-md bg-accent py-1.5 text-center font-mono text-[12px] font-medium text-primary">
+              {l.code}
+            </span>
+            <div class="sm:w-56 sm:shrink-0">
+              <h3 class="text-[16px] font-semibold">{l.name}</h3>
+            </div>
+            <p class="flex-1 text-[15px] leading-relaxed text-slate">{l.body}</p>
+          </div>
+        ))
+      }
+    </div>
+    <p class="mt-6 max-w-3xl text-[15px] leading-relaxed text-slate">
+      On a book where roughly 70% of rows shared no reference at all, this resolved above 90% of value
+      back to the individual order. Every match is SQL, so a reviewer can follow the rule that fired
+      rather than trusting a score.
+    </p>
+  </Section>
+
+  <Section
+    tone="mist"
+    eyebrow="03 · Exceptions"
+    title="Only genuine ambiguity reaches a person"
+    lede="What cannot be matched is categorised, aged and routed to an owner. Your team works a short queue with the evidence already attached, and the answers they give are remembered for next month."
+  >
+    <div class="mt-12 grid gap-px overflow-hidden rounded-card border border-hairline bg-hairline sm:grid-cols-2 lg:grid-cols-3">
+      {
+        exceptions.map(([code, desc]) => (
+          <div class="bg-paper p-6">
+            <code class="font-mono text-[12.5px] font-medium text-primary">{code}</code>
+            <p class="mt-2 text-[14.5px] leading-relaxed text-slate">{desc}</p>
+          </div>
+        ))
+      }
+    </div>
+  </Section>
+
+  <Section
+    tone="paper"
+    eyebrow="04 · The pack"
+    title="The deliverable that goes out under your name"
+    lede="The close assembles into a branded pack. Any figure in it drills to the rows behind it, so a client question can be answered from the stored trail without reopening the books."
+  >
+    <div class="mt-12 grid gap-10 lg:grid-cols-[1fr_1.1fr] lg:items-start">
+      <div class="overflow-hidden rounded-card border border-hairline bg-paper">
+        {
+          packSections.map(([n, t, b], i) => (
+            <div class:list={["flex gap-4 p-6", i > 0 && "border-t border-hairline"]}>
+              <span class="font-mono text-[12px] font-medium text-ash">{n}</span>
+              <div>
+                <h3 class="text-[16px] font-semibold">{t}</h3>
+                <p class="mt-1.5 text-[14.5px] leading-relaxed text-slate">{b}</p>
+              </div>
+            </div>
+          ))
+        }
+      </div>
+
+      <div class="surface p-7">
+        <p class="eyebrow">The assistant boundary</p>
+        <h3 class="mt-3 text-[22px] font-semibold tracking-[-0.02em]">
+          It will edit the pack. It will not change a figure.
+        </h3>
+        <p class="mt-4 text-[15.5px] leading-relaxed text-slate">
+          Ask it to reorder a section, rewrite a commentary, or add a cut of the channel economics and
+          it will. Ask it to move a number and it refuses, and tells you where the number came from
+          instead.
+        </p>
+        <p class="mt-4 text-[15.5px] leading-relaxed text-slate">
+          If a figure is wrong the fix belongs upstream in the data, where it leaves a trail that an
+          auditor can follow. That refusal is not a limitation. It is the reason a licensed firm can
+          sign what comes out.
+        </p>
+        <div class="mt-6 rounded-small border border-hairline bg-fog p-4">
+          <p class="font-mono text-[11px] tracking-[0.1em] text-ash uppercase">Every step is a stored record</p>
+          <p class="mt-2 text-[14px] leading-relaxed text-slate">
+            Not a recalculation. A figure shown today can be reproduced months later, with the rule and
+            the human decision that produced it.
+          </p>
+        </div>
+      </div>
+    </div>
+  </Section>
+
+  <Section
+    tone="mist"
+    eyebrow="In full"
+    title="What lives in the platform"
+  >
+    <div class="mt-12 grid gap-px overflow-hidden rounded-card border border-hairline bg-hairline sm:grid-cols-2 lg:grid-cols-4">
+      {
+        capabilities.map((c) => (
+          <div class="bg-paper p-6">
+            <h3 class="text-[15.5px] font-semibold tracking-[-0.005em]">{c.title}</h3>
+            <p class="mt-2 text-[14px] leading-relaxed text-slate">{c.body}</p>
+          </div>
+        ))
+      }
+    </div>
+  </Section>
+
+  <section class="bg-ink">
+    <div class="mx-auto max-w-page px-5 py-20 sm:px-8 sm:py-24">
+      <div class="max-w-3xl">
+        <p class="eyebrow text-white/45">Why it holds up</p>
+        <h2 class="display mt-3 text-[32px] text-white sm:text-[40px]">
+          An AI that guesses at a balance is worse than no AI at all
+        </h2>
+        <p class="mt-5 text-[17px] leading-relaxed text-white/65">
+          Propel uses a model exactly where a model is good, and nowhere else. That boundary is the
+          reason a licensed firm can put its name on the output.
+        </p>
+      </div>
+
+      <div class="mt-14 grid gap-10 sm:grid-cols-2">
+        {
+          differentiators.map((d) => (
+            <div class="border-t border-white/12 pt-6">
+              <h3 class="text-[18px] font-semibold text-white">{d.title}</h3>
+              <p class="mt-2.5 text-[15px] leading-relaxed text-white/60">{d.body}</p>
+            </div>
+          ))
+        }
+      </div>
+    </div>
+  </section>
+
+  <CtaBand
+    title="Watch it reconcile a real month"
+    body="Send one client's files ahead of the call, or bring them live. Thirty minutes is enough to see ingestion, matching, the exception queue and the pack."
+  />
+</Layout>

@@ -1,0 +1,37 @@
+<div class="surface p-5 shadow-lift sm:p-6">
+  <div class="flex flex-wrap items-center gap-3">
+    <span class="statechip chip-risk">Profitability</span>
+    <span class="font-mono text-[11px] tracking-[0.1em] text-ash uppercase">Needs a decision</span>
+    <span class="tabular ml-auto text-[15px] font-semibold text-moss">AED 4,700</span>
+  </div>
+
+  <h3 class="mt-3 text-[17px] leading-snug font-semibold tracking-[-0.01em]">
+    Deliveroo is charging 25.5% against a contracted 24.0%
+  </h3>
+  <p class="mt-2 text-[14.5px] leading-relaxed text-slate">
+    Three payout files were decomposed order by order. Every order carries a 25.5% deduction. The
+    signed agreement on file sets 24.0% until renewal.
+  </p>
+
+  <dl class="mt-4 grid grid-cols-2 gap-px overflow-hidden rounded-small border border-hairline bg-hairline sm:grid-cols-4">
+    {
+      [
+        ["Orders checked", "2,214"],
+        ["Charged", "25.5%"],
+        ["Contracted", "24.0%"],
+        ["Since", "May 2026"],
+      ].map(([k, v]) => (
+        <div class="bg-fog px-3 py-2.5">
+          <dt class="text-[10.5px] tracking-[0.03em] text-ash uppercase">{k}</dt>
+          <dd class="tabular mt-0.5 text-[14px] font-medium">{v}</dd>
+        </div>
+      ))
+    }
+  </dl>
+
+  <div class="mt-4 flex flex-wrap gap-2">
+    <span class="rounded-small bg-primary px-3 py-1.5 text-[12.5px] font-medium text-white">Raise a claim</span>
+    <span class="rounded-small border border-hairline px-3 py-1.5 text-[12.5px] text-slate">Update the contract</span>
+    <span class="rounded-small border border-hairline px-3 py-1.5 text-[12.5px] text-slate">Ask the client</span>
+  </div>
+</div>

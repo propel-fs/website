@@ -1,0 +1,68 @@
+---
+const tabs = ["Ingestion", "Receivables", "Payables", "Insights", "MIS pack"];
+
+const sources = [
+  { n: "Zoho Books", t: "Ledger", tag: "Connected", tone: "api", meta: ["pulls itself", "31 Jul"] },
+  { n: "Foodics POS", t: "Point of sale", tag: "File drop", tone: "file", meta: ["31 files", "95,690 rows"] },
+  { n: "Talabat", t: "Aggregator", tag: "File drop", tone: "file", meta: ["4 payouts", "18,940 orders"] },
+  { n: "Deliveroo", t: "Aggregator", tag: "File drop", tone: "file", meta: ["3 payouts", "2,214 orders"] },
+  { n: "Careem", t: "Aggregator", tag: "Awaiting", tone: "wait", meta: ["July not released"] },
+  { n: "ADCB", t: "Bank statement", tag: "File drop", tone: "file", meta: ["PDF", "1,204 lines"] },
+];
+
+const toneClass = {
+  api: "bg-sage text-moss",
+  file: "bg-accent text-primary",
+  wait: "bg-peach text-sienna",
+};
+---
+
+<div class="surface overflow-hidden shadow-lift">
+  <div class="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-hairline bg-paper px-5 py-3.5">
+    <div class="min-w-0">
+      <p class="text-[15px] font-semibold tracking-[-0.015em]">Dallah Coffee Roasters</p>
+      <p class="text-[12px] text-slate">F&B · UAE · Zoho Books · six outlets</p>
+    </div>
+    <span class="statechip chip-work ml-auto">Review</span>
+  </div>
+
+  <div class="flex gap-1 overflow-x-auto border-b border-hairline bg-mist px-3 py-2">
+    {
+      tabs.map((t, i) => (
+        <span
+          class:list={[
+            "rounded-small px-3 py-1.5 text-[13px] font-medium whitespace-nowrap",
+            i === 0 ? "bg-accent text-primary" : "text-slate",
+          ]}
+        >
+          {t}
+        </span>
+      ))
+    }
+  </div>
+
+  <div class="grid gap-px bg-hairline sm:grid-cols-2 lg:grid-cols-3">
+    {
+      sources.map((s) => (
+        <div class="flex flex-col gap-2.5 bg-paper p-4">
+          <div class="flex items-start justify-between gap-3">
+            <div class="min-w-0">
+              <p class="text-[13.5px] font-semibold">{s.n}</p>
+              <p class="text-[11.5px] text-slate">{s.t}</p>
+            </div>
+            <span class={`statechip ${toneClass[s.tone]}`}>{s.tag}</span>
+          </div>
+          <div class="flex flex-wrap gap-1.5">
+            {s.meta.map((m) => (
+              <span class="rounded bg-mist px-2 py-0.5 font-mono text-[10.5px] text-slate">{m}</span>
+            ))}
+          </div>
+        </div>
+      ))
+    }
+  </div>
+
+  <p class="border-t border-hairline bg-fog px-5 py-3 text-[12.5px] text-slate">
+    Aggregator portals and GCC bank statements have no API, so file drop is a first-class path.
+  </p>
+</div>
