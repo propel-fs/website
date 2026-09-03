@@ -195,10 +195,6 @@ export const faqs = [
     a: "Most in the region do not, which is why file drop is a first-class path rather than a fallback. Statements arrive by folder or email drop and are parsed per bank template. Anything Propel cannot classify is raised rather than guessed at.",
   },
   {
-    q: "Which ledgers do you write to?",
-    a: "Zoho Books is live and Xero is in QA. Tally, QuickBooks, NetSuite and Wafeq are on the roadmap, and until then those clients run as a file drop, which reconciles exactly the same way.",
-  },
-  {
     q: "Can the assistant change a number?",
     a: "It cannot, by design. It edits the pack's structure and wording only. If a figure is wrong the fix happens upstream in the data, where it leaves a trail. This is the boundary that lets a licensed firm put its name on the output.",
   },
