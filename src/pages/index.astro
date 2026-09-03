@@ -7,7 +7,7 @@ import FindingMock from "../components/FindingMock.astro";
 import DrillMock from "../components/DrillMock.astro";
 import WorkspaceMock from "../components/WorkspaceMock.astro";
 import PackMock from "../components/PackMock.astro";
-import { clientGets, faqs, heroStats, personas, problems, workspaceTabs } from "../data/site";
+import { url, clientGets, faqs, heroStats, personas, problems, workspaceTabs } from "../data/site";
 ---
 
 <Layout>
@@ -31,13 +31,16 @@ import { clientGets, faqs, heroStats, personas, problems, workspaceTabs } from "
           closes itself, so your people spend it advising instead of assembling.
         </p>
         <div class="mt-9 flex flex-col items-center justify-center gap-3 sm:flex-row">
-          <a href="/demo" class="pill pill-filled w-full sm:w-auto">Schedule a demo</a>
-          <a href="/platform" class="pill pill-ghost w-full sm:w-auto">See how it works</a>
+          <a href={url("/demo")} class="pill pill-filled w-full sm:w-auto">Schedule a demo</a>
+          <a href={url("/platform")} class="pill pill-ghost w-full sm:w-auto">See how it works</a>
         </div>
       </div>
 
       <div class="relative mx-auto mt-16 max-w-5xl">
         <CockpitMock />
+        <p class="mt-3 text-center text-[12.5px] text-ash">
+          Illustrative data. Client names and figures are examples, not real companies.
+        </p>
       </div>
 
       <dl class="mx-auto mt-14 grid max-w-4xl gap-8 sm:grid-cols-3">
@@ -94,7 +97,7 @@ import { clientGets, faqs, heroStats, personas, problems, workspaceTabs } from "
             ))
           }
         </div>
-        <a href="/platform" class="link-arrow mt-8 inline-flex text-[15.5px]">
+        <a href={url("/platform")} class="link-arrow mt-8 inline-flex text-[15.5px]">
           See what goes into a pack →
         </a>
       </div>
@@ -231,7 +234,7 @@ import { clientGets, faqs, heroStats, personas, problems, workspaceTabs } from "
             client's sources into one cumulative ledger and matches both sides deterministically.
             It runs overnight, and you only meet it when something genuinely needs a person.
           </p>
-          <a href="/platform" class="link-arrow mt-7 inline-flex text-[15.5px] text-primary">
+          <a href={url("/platform")} class="link-arrow mt-7 inline-flex text-[15.5px] text-primary">
             See how the engine works →
           </a>
         </div>

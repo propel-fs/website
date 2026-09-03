@@ -2,7 +2,7 @@
 import Layout from "../layouts/Layout.astro";
 import Section from "../components/Section.astro";
 import CtaBand from "../components/CtaBand.astro";
-import { securityPoints } from "../data/site";
+import { url, securityPoints } from "../data/site";
 
 const boundaries = [
   {
@@ -123,7 +123,7 @@ const boundaries = [
         We would rather answer it early than late. Send it ahead of the call and we will walk through
         data handling, hosting and isolation with the engineer who built it.
       </p>
-      <a href="/demo" class="pill pill-filled mt-7">Schedule a demo</a>
+      <a href={url("/demo")} class="pill pill-filled mt-7">Schedule a demo</a>
     </div>
   </Section>
 

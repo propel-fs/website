@@ -3,7 +3,7 @@ import Layout from "../layouts/Layout.astro";
 import Section from "../components/Section.astro";
 import CtaBand from "../components/CtaBand.astro";
 import CockpitMock from "../components/CockpitMock.astro";
-import { personas } from "../data/site";
+import { url, personas } from "../data/site";
 
 const economics = [
   {
@@ -64,8 +64,8 @@ const gcc = [
             findings a partner can actually talk about.
           </p>
           <div class="mt-9 flex flex-col gap-3 sm:flex-row">
-            <a href="/demo" class="pill pill-filled">Schedule a demo</a>
-            <a href="/platform" class="pill pill-ghost">See the platform</a>
+            <a href={url("/demo")} class="pill pill-filled">Schedule a demo</a>
+            <a href={url("/platform")} class="pill pill-ghost">See the platform</a>
           </div>
         </div>
         <CockpitMock />

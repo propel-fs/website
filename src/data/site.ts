@@ -1,3 +1,9 @@
+const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+
+export const url = (path: string) => `${base}${path}`;
+
+export const indexable = import.meta.env.PUBLIC_INDEXABLE === "true";
+
 export const site = {
   name: "Propel",
   tagline: "The AI close platform for accounting firms",

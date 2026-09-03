@@ -1,6 +1,6 @@
 ---
 import LogoMark from "./LogoMark.astro";
-import { nav, site } from "../data/site";
+import { url, nav, site } from "../data/site";
 
 const year = new Date().getFullYear();
 ---
@@ -26,13 +26,13 @@ const year = new Date().getFullYear();
           {
             nav.map((item) => (
               <li>
-                <a href={item.href} class="hover:text-ink">
+                <a href={url(item.href)} class="hover:text-ink">
                   {item.label}
                 </a>
               </li>
             ))
           }
-          <li><a href="/demo" class="hover:text-ink">Schedule a demo</a></li>
+          <li><a href={url("/demo")} class="hover:text-ink">Schedule a demo</a></li>
         </ul>
       </div>
 
@@ -40,7 +40,7 @@ const year = new Date().getFullYear();
         <h2 class="text-[13px] font-semibold text-ink">Contact</h2>
         <ul class="mt-4 space-y-2.5 text-[14.5px] text-slate">
           <li><a href={`mailto:${site.email}`} class="hover:text-ink">{site.email}</a></li>
-          <li><a href="/demo" class="link-arrow">Book a walkthrough →</a></li>
+          <li><a href={url("/demo")} class="link-arrow">Book a walkthrough →</a></li>
         </ul>
       </div>
     </div>

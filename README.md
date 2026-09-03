@@ -12,7 +12,7 @@ npm run preview
 ## Design system
 
 The palette, type scale, radii and shadows in `src/styles/global.css` are the app's own tokens,
-taken from `src/app/templates/base.html`. Ink `#21232f`, primary `#4772ff`, Inter and JetBrains
+taken from the product's own Tailwind config. Ink `#21232f`, primary `#4772ff`, Inter and JetBrains
 Mono. Keep them in sync so the site and the product read as one thing.
 
 ## Structure
@@ -40,7 +40,9 @@ it drives canonical URLs and the sitemap.
 
 ## Claims
 
-Copy is written against the engine's actual build state. Nothing on the site is claimed as shipped
-that the Alchemist prototype tags Roadmap: payables, payroll and bills, and scheduled portal pulls
-are all absent by design. If the engine's state changes, `src/data/site.ts` is the one file to
-revisit.
+Copy is written against the product's actual build state. Nothing is claimed as shipped that is not:
+payables, payroll and bills, and scheduled portal pulls are all absent by design. If that state
+changes, `src/data/site.ts` is the one file to revisit.
+
+Client names, figures and findings in the product mockups are illustrative and do not describe any
+real company.

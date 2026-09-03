@@ -2,12 +2,12 @@
 const tabs = ["Ingestion", "Receivables", "Payables", "Insights", "MIS pack"];
 
 const sources = [
-  { n: "Zoho Books", t: "Ledger", tag: "Connected", tone: "api", meta: ["pulls itself", "31 Jul"] },
-  { n: "Foodics POS", t: "Point of sale", tag: "File drop", tone: "file", meta: ["31 files", "95,690 rows"] },
-  { n: "Talabat", t: "Aggregator", tag: "File drop", tone: "file", meta: ["4 payouts", "18,940 orders"] },
-  { n: "Deliveroo", t: "Aggregator", tag: "File drop", tone: "file", meta: ["3 payouts", "2,214 orders"] },
-  { n: "Careem", t: "Aggregator", tag: "Awaiting", tone: "wait", meta: ["July not released"] },
-  { n: "ADCB", t: "Bank statement", tag: "File drop", tone: "file", meta: ["PDF", "1,204 lines"] },
+  { n: "Cloud ledger", t: "Accounting system", tag: "Connected", tone: "api", meta: ["pulls itself", "31 Jul"] },
+  { n: "Point of sale", t: "Six outlets", tag: "File drop", tone: "file", meta: ["31 files", "95,690 rows"] },
+  { n: "Aggregator A", t: "Delivery platform", tag: "File drop", tone: "file", meta: ["4 payouts", "18,940 orders"] },
+  { n: "Aggregator B", t: "Delivery platform", tag: "File drop", tone: "file", meta: ["3 payouts", "2,214 orders"] },
+  { n: "Aggregator C", t: "Delivery platform", tag: "Awaiting", tone: "wait", meta: ["July not released"] },
+  { n: "Bank statement", t: "Current account", tag: "File drop", tone: "file", meta: ["PDF", "1,204 lines"] },
 ];
 
 const toneClass = {
