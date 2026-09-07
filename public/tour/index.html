@@ -1,0 +1,2343 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Client Cockpit: a Propel prototype</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;450;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Palette, type, radii and shadows lifted from the app's own tailwind config in
+   src/app/templates/base.html. Light only: the app has no prefers-color-scheme handling. */
+:root{
+  color-scheme:light;
+  --ink:#21232f; --paper:#ffffff; --mist:#f4f6f9; --fog:#f8fafc;
+  --slate:#697a8e; --ash:#9ca3af; --smoke:#cbd5e1; --hairline:#e5e8ee;
+  --primary:#4772ff; --accent:#ebeef4;
+  --peach:#fadfa9; --sienna:#92400e; --sage:#f0fdf4; --moss:#109458; --destructive:#dc4e45;
+  --r-card:12px; --r-small:8px;
+  --sh:0 1px 2px 0 rgba(0,0,0,.05);
+  --sh-pop:0 4px 6px -1px rgba(0,0,0,.1),0 2px 4px -2px rgba(0,0,0,.1);
+  --s1:#4772ff; --s2:#eb6834; --s3:#109458; --s4:#eda100; --s5:#8b5cf6;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--fog);color:var(--ink);
+  font-family:Inter,ui-sans-serif,system-ui,sans-serif;font-size:14px;line-height:1.55;
+  -webkit-font-smoothing:antialiased}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+a{color:var(--primary)}
+:focus-visible{outline:2px solid var(--primary);outline-offset:2px;border-radius:4px}
+.display{font-weight:600;letter-spacing:-.02em}
+.mono,.num{font-family:"JetBrains Mono",ui-monospace,monospace;font-variant-numeric:tabular-nums}
+::-webkit-scrollbar{width:10px;height:10px}
+::-webkit-scrollbar-thumb{background:var(--hairline);border-radius:9999px;border:3px solid var(--paper)}
+
+/* ---------- banner + topbar ---------- */
+.banner{display:flex;flex-wrap:wrap;align-items:center;gap:6px 14px;padding:7px 24px;
+  background:var(--peach);color:var(--sienna);font-size:12px}
+.banner b{font-family:"JetBrains Mono",monospace;font-size:10px;letter-spacing:.14em;
+  text-transform:uppercase;font-weight:500}
+.banner .sep{opacity:.4}
+.topbar{position:sticky;top:0;z-index:40;background:var(--paper);border-bottom:1px solid var(--hairline)}
+.topbar-in{padding:11px 24px;display:flex;flex-wrap:wrap;align-items:center;gap:14px 22px}
+.brand{display:flex;align-items:center;gap:11px;min-width:0}
+.brand-mark{width:30px;height:30px;border-radius:var(--r-small);flex:none;background:var(--ink);
+  display:grid;place-items:center;color:#fff;font-weight:700;font-size:14px}
+.brand-name{font-weight:600;font-size:15px;letter-spacing:-.015em;line-height:1.2}
+.brand-sub{font-family:"JetBrains Mono",monospace;font-size:9.5px;letter-spacing:.12em;
+  text-transform:uppercase;color:var(--ash)}
+.nav{display:flex;gap:4px;flex-wrap:wrap;margin-left:auto}
+.nav button{display:flex;align-items:center;height:36px;padding:0 12px;border-radius:var(--r-small);
+  font-size:14px;font-weight:500;color:var(--slate)}
+.nav button:hover{background:var(--accent);color:var(--ink)}
+.nav button[aria-current="true"]{background:var(--accent);color:var(--primary)}
+
+/* ---------- shell ---------- */
+.main{padding:22px 24px 80px;display:flex;flex-direction:column;gap:20px}
+.view[hidden]{display:none}
+#v-client>div[id^="t-"]{margin-top:18px}
+.page-head{display:flex;flex-wrap:wrap;align-items:flex-start;justify-content:space-between;gap:14px}
+h1{font-size:26px;font-weight:600;letter-spacing:-.022em;margin:0;line-height:1.18}
+.page-sub{color:var(--slate);font-size:14px;margin:6px 0 0;max-width:88ch}
+.chip{display:inline-flex;align-items:center;gap:6px;padding:3px 9px;border-radius:6px;
+  font-size:11px;font-weight:500;white-space:nowrap;letter-spacing:.01em}
+.chip::before{content:"";width:5px;height:5px;border-radius:50%;background:currentColor}
+.chip.live{background:var(--sage);color:var(--moss)}
+.chip.build{background:var(--peach);color:var(--sienna)}
+.chip.road{background:var(--accent);color:var(--slate)}
+
+/* ---------- tiles ---------- */
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px}
+.tile{background:var(--paper);border:1px solid var(--hairline);border-radius:var(--r-card);
+  box-shadow:var(--sh);padding:14px 16px;display:flex;flex-direction:column;gap:4px}
+.tile-l{font-size:11px;font-weight:500;letter-spacing:.02em;color:var(--ash);text-transform:uppercase}
+.tile-v{font-size:26px;font-weight:600;letter-spacing:-.025em;line-height:1.15;font-variant-numeric:tabular-nums}
+.tile-v small{font-size:.5em;color:var(--ash);font-weight:500;margin-right:3px;letter-spacing:0}
+.tile-v small.after{margin-right:0;margin-left:5px}
+.tile-d{font-size:12px;color:var(--slate)}
+.tile-d .up{color:var(--moss)} .tile-d .down{color:var(--destructive)}
+
+/* ---------- panel ---------- */
+.panel{background:var(--paper);border:1px solid var(--hairline);border-radius:var(--r-card);
+  box-shadow:var(--sh);overflow:hidden}
+.panel-head{display:flex;flex-wrap:wrap;align-items:center;gap:10px 16px;padding:13px 18px;
+  border-bottom:1px solid var(--hairline)}
+.panel-title{font-weight:600;font-size:14px}
+.panel-note{font-size:12px;color:var(--ash);margin-left:auto}
+.panel-body{padding:18px}
+
+/* ---------- filters ---------- */
+.filters{display:flex;flex-wrap:wrap;gap:10px;align-items:center;padding:12px 18px;
+  border-bottom:1px solid var(--hairline);background:var(--mist)}
+.fgroup{display:flex;align-items:center;gap:7px}
+.flabel{font-size:11px;font-weight:500;text-transform:uppercase;letter-spacing:.02em;color:var(--ash)}
+select,input[type="search"]{background:var(--paper);color:var(--ink);border:1px solid var(--hairline);
+  border-radius:var(--r-small);padding:7px 10px;font:inherit;font-size:13px;height:34px}
+input[type="search"]{min-width:210px}
+.fspacer{margin-left:auto;font-size:12px;color:var(--ash)}
+.fclear{border:1px solid var(--hairline);border-radius:var(--r-small);padding:0 12px;height:34px;
+  font-size:13px;color:var(--ink);background:var(--paper)}
+.fclear:hover{background:var(--mist)}
+
+/* ---------- tables ---------- */
+.tscroll{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:13px}
+thead th{font-size:11px;font-weight:500;letter-spacing:.02em;text-transform:uppercase;color:var(--ash);
+  text-align:right;padding:10px 12px;border-bottom:1px solid var(--hairline);white-space:nowrap;background:var(--fog)}
+thead th:first-child{text-align:left}
+thead th.sortable{cursor:pointer;user-select:none}
+thead th.sortable:hover{color:var(--ink)}
+thead th .arr{opacity:.35;margin-left:3px}
+thead th[aria-sort] .arr{opacity:1;color:var(--primary)}
+tbody td,tbody th{padding:9px 12px;text-align:right;border-bottom:1px solid var(--hairline);
+  font-weight:400;white-space:nowrap;font-variant-numeric:tabular-nums}
+tbody th{text-align:left;font-weight:500}
+tr.rowlink{cursor:pointer}
+tr.rowlink:hover td,tr.rowlink:hover th{background:var(--mist)}
+.cname{display:flex;flex-direction:column;gap:1px}
+.cname b{font-weight:600;font-size:13.5px}
+.cname span{font-size:11.5px;color:var(--ash)}
+.cname span.go{color:var(--primary);font-weight:500}
+tr.rowflat th .cname b{font-weight:500;color:var(--slate)}
+tr.rowflat td{color:var(--slate)}
+tr.rowflat:hover td,tr.rowflat:hover th{background:transparent}
+.pill{display:inline-flex;align-items:center;gap:6px;padding:3px 9px;border-radius:6px;
+  font-size:11.5px;font-weight:500;white-space:nowrap}
+.pill::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor;flex:none}
+.p-done{background:var(--sage);color:var(--moss)}
+.p-work{background:var(--accent);color:var(--primary)}
+.p-risk{background:var(--peach);color:var(--sienna)}
+.p-block{background:#fdecea;color:var(--destructive)}
+.meter{display:inline-flex;align-items:center;gap:8px;justify-content:flex-end}
+.mtrack{width:56px;height:6px;border-radius:3px;background:var(--accent);overflow:hidden;flex:none}
+.mfill{height:100%;background:var(--primary)}
+.mfill.warn{background:var(--sienna)} .mfill.bad{background:var(--destructive)}
+.excn{display:inline-flex;align-items:center;justify-content:center;min-width:22px;height:20px;padding:0 6px;
+  border-radius:6px;font-size:12px;font-weight:600;background:var(--accent);color:var(--slate)}
+.excn.hot{background:#fdecea;color:var(--destructive)}
+.dim{color:var(--ash)} .pos{color:var(--moss)} .neg{color:var(--destructive)}
+.empty{padding:44px 20px;text-align:center;color:var(--ash);font-size:13.5px}
+
+/* ---------- client header ---------- */
+.chead{display:flex;flex-wrap:wrap;align-items:center;gap:14px 18px;padding:14px 18px;
+  background:var(--paper);border:1px solid var(--hairline);border-radius:var(--r-card);box-shadow:var(--sh)}
+.back{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--ink);
+  padding:0 12px;height:34px;border:1px solid var(--hairline);border-radius:var(--r-small);background:var(--paper)}
+.back:hover{background:var(--mist)}
+.chead-id{display:flex;flex-direction:column;gap:1px;min-width:0}
+.chead-id b{font-size:18px;font-weight:600;letter-spacing:-.02em}
+.chead-id span{font-size:12.5px;color:var(--slate)}
+.chead-tabs{display:flex;gap:4px;margin-left:auto;flex-wrap:wrap}
+.chead-tabs button{display:flex;align-items:center;height:36px;padding:0 12px;border-radius:var(--r-small);
+  font-size:14px;font-weight:500;color:var(--slate)}
+.chead-tabs button:hover{background:var(--accent);color:var(--ink)}
+.chead-tabs button[aria-current="true"]{background:var(--accent);color:var(--primary)}
+.badge{display:inline-block;margin-left:7px;padding:1px 6px;border-radius:9999px;background:var(--destructive);
+  color:#fff;font-size:10.5px;font-weight:600;font-family:"JetBrains Mono",monospace}
+
+/* ---------- ingestion ---------- */
+.srcgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(268px,1fr));gap:12px}
+.src{background:var(--paper);border:1px solid var(--hairline);border-radius:var(--r-card);box-shadow:var(--sh);
+  padding:14px 16px;display:flex;flex-direction:column;gap:9px}
+.src-top{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+.src-n{font-weight:600;font-size:14px}
+.src-t{font-size:12px;color:var(--slate)}
+.src-meta{display:flex;flex-wrap:wrap;gap:5px 6px}
+.src-meta span{font-family:"JetBrains Mono",monospace;font-size:10.5px;padding:2px 7px;border-radius:5px;
+  background:var(--mist);color:var(--slate)}
+.tagline{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:500;padding:2px 8px;
+  border-radius:6px;white-space:nowrap}
+.tg-api{background:var(--sage);color:var(--moss)}
+.tg-file{background:var(--accent);color:var(--primary)}
+.tg-wait{background:var(--peach);color:var(--sienna)}
+
+/* ---------- reconciliation rail ---------- */
+.rclayout{display:grid;grid-template-columns:242px minmax(0,1fr);gap:18px;align-items:start}
+@media (max-width:980px){.rclayout{grid-template-columns:minmax(0,1fr)}}
+.rail{position:sticky;top:84px;background:var(--paper);border:1px solid var(--hairline);
+  border-radius:var(--r-card);box-shadow:var(--sh);padding:10px}
+.rail-g{padding:10px 10px 4px;font-size:10.5px;font-weight:600;letter-spacing:.08em;
+  text-transform:uppercase;color:var(--ash)}
+.sb-navlink{display:flex;align-items:center;gap:10px;height:36px;padding:0 10px;width:100%;
+  border-radius:var(--r-small);font-size:14px;font-weight:500;color:var(--slate);text-align:left}
+.sb-navlink:hover{background:var(--accent);color:var(--ink)}
+.sb-navlink[aria-current="true"]{background:var(--accent);color:var(--primary)}
+.sb-navlink .ct{margin-left:auto;font-family:"JetBrains Mono",monospace;font-size:11px;color:var(--ash)}
+.sb-navlink[aria-current="true"] .ct{color:var(--primary)}
+.sb-navlink .ct.hot{color:var(--destructive)}
+.rcpane[hidden]{display:none}
+.rcpane{display:flex;flex-direction:column;gap:14px}
+.paneh{display:flex;flex-wrap:wrap;align-items:baseline;gap:10px}
+.paneh h2{margin:0;font-size:18px;font-weight:600;letter-spacing:-.015em}
+.paneh .chip{margin-left:auto}
+.paneh p{margin:0;flex:0 0 100%;min-width:100%;font-size:13px;color:var(--slate);max-width:92ch}
+
+/* ---------- layers + grids ---------- */
+.layers{display:flex;flex-direction:column}
+.layer{display:grid;grid-template-columns:52px minmax(0,1fr) 170px 128px;gap:14px;align-items:center;
+  padding:13px 18px;border-bottom:1px solid var(--hairline)}
+.layer:last-child{border-bottom:0}
+.lcode{font-family:"JetBrains Mono",monospace;font-size:12px;font-weight:500;color:var(--primary);
+  background:var(--accent);border-radius:6px;padding:4px 0;text-align:center}
+.lname{display:flex;flex-direction:column;gap:1px;min-width:0}
+.lname b{font-size:14px;font-weight:600}
+.lname span{font-size:11.5px;color:var(--ash);font-family:"JetBrains Mono",monospace}
+.lval{text-align:right;font-family:"JetBrains Mono",monospace;font-size:13px;font-variant-numeric:tabular-nums}
+.lval small{display:block;font-size:10.5px;color:var(--ash)}
+.gridcounts{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px}
+.gc{background:var(--paper);border:1px solid var(--hairline);border-radius:var(--r-card);box-shadow:var(--sh);
+  padding:13px 15px;display:flex;flex-direction:column;gap:2px;text-align:left}
+.gc-l{font-size:11px;font-weight:500;text-transform:uppercase;letter-spacing:.02em;color:var(--ash)}
+.gc-v{font-family:"JetBrains Mono",monospace;font-size:20px;font-variant-numeric:tabular-nums;font-weight:500}
+.gc-d{font-size:11.5px;color:var(--slate)}
+
+/* ---------- exceptions ---------- */
+.qbar{display:flex;flex-wrap:wrap;gap:9px;align-items:center;padding:11px 18px;
+  border-bottom:1px solid var(--hairline);background:var(--mist)}
+.seg{display:inline-flex;border:1px solid var(--hairline);border-radius:var(--r-small);overflow:hidden;background:var(--paper)}
+.seg button{padding:6px 12px;font-size:12.5px;color:var(--slate);border-right:1px solid var(--hairline)}
+.seg button:last-child{border-right:0}
+.seg button[aria-pressed="true"]{background:var(--primary);color:#fff}
+.exrow{display:grid;grid-template-columns:minmax(0,1fr) 150px 130px 178px;gap:12px;align-items:center;
+  padding:11px 18px;border-bottom:1px solid var(--hairline)}
+.exrow:last-child{border-bottom:0}
+.exrow:hover{background:var(--mist)}
+.excat{font-family:"JetBrains Mono",monospace;font-size:12.5px}
+.exref{font-size:11.5px;color:var(--ash);font-family:"JetBrains Mono",monospace}
+.exsel{width:100%;height:32px;font-size:12.5px}
+.st-open{color:var(--destructive)} .st-acknowledged{color:var(--sienna)}
+.st-assigned{color:var(--primary)} .st-written_off{color:var(--ash)} .st-resolved{color:var(--moss)}
+.frame{border:1px dashed var(--smoke);border-radius:var(--r-card);padding:18px;background:var(--paper);
+  display:flex;flex-direction:column;gap:12px}
+.frame h4{margin:0;font-size:15px;font-weight:600}
+.frame ul{margin:0;padding-left:18px;color:var(--slate);font-size:13px;line-height:1.75}
+
+/* ---------- decision cards ---------- */
+.ig{display:flex;flex-direction:column;gap:12px}
+.iglabel{display:flex;flex-wrap:wrap;align-items:baseline;gap:10px;padding-bottom:8px;
+  border-bottom:1px solid var(--hairline);margin-top:8px}
+.iglabel b{font-size:17px;font-weight:600;letter-spacing:-.015em}
+.iglabel span{font-size:12.5px;color:var(--ash)}
+.icard{background:var(--paper);border:1px solid var(--hairline);border-radius:var(--r-card);
+  box-shadow:var(--sh);overflow:hidden}
+.icard.done{opacity:.66}
+.ic-h{display:flex;flex-wrap:wrap;align-items:flex-start;gap:10px 14px;padding:14px 16px 10px}
+.ic-t{font-size:15px;font-weight:600;letter-spacing:-.012em;flex:1;min-width:200px}
+.ic-amt{font-family:"JetBrains Mono",monospace;font-size:14px;font-variant-numeric:tabular-nums;white-space:nowrap;text-align:right}
+.ic-amt small{display:block;font-size:10px;color:var(--ash);letter-spacing:.04em;text-transform:uppercase}
+.ic-b{padding:0 16px 13px;display:flex;flex-direction:column;gap:10px}
+.ic-w{font-size:13.5px;color:var(--slate);line-height:1.62;max-width:96ch}
+.ic-ev{display:flex;flex-wrap:wrap;gap:6px}
+.evchip{font-family:"JetBrains Mono",monospace;font-size:11px;padding:3px 8px;border-radius:5px;
+  background:var(--mist);color:var(--slate)}
+.ic-f{display:flex;flex-wrap:wrap;gap:8px;padding:11px 16px;border-top:1px solid var(--hairline);background:var(--mist)}
+.ibtn{padding:0 13px;height:34px;border-radius:var(--r-small);font-size:13px;font-weight:500;
+  border:1px solid var(--hairline);background:var(--paper);display:inline-flex;align-items:center}
+.ibtn:hover{background:var(--accent)}
+.ibtn.primary{background:var(--primary);color:#fff;border-color:var(--primary)}
+.ibtn.primary:hover{opacity:.9;background:var(--primary)}
+.ic-done{display:flex;align-items:center;gap:8px;padding:11px 16px;border-top:1px solid var(--hairline);
+  background:var(--sage);color:var(--moss);font-size:12.5px;font-weight:500}
+.ic-done button{margin-left:auto;font-size:11.5px;color:var(--slate);text-decoration:underline}
+.subhead{display:flex;flex-wrap:wrap;align-items:baseline;gap:10px;margin:8px 0 0}
+.subhead h3{margin:0;font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--ash)}
+
+/* ---------- MIS pack ---------- */
+.packlayout{display:grid;grid-template-columns:minmax(0,1fr) 380px;gap:18px;align-items:start}
+@media (max-width:1120px){.packlayout{grid-template-columns:minmax(0,1fr)}}
+.doc{background:var(--paper);border:1px solid var(--hairline);border-radius:var(--r-card);box-shadow:var(--sh);
+  padding:26px 30px 30px;display:flex;flex-direction:column;gap:26px}
+.doc-mast{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-start;gap:16px;
+  padding-bottom:16px;border-bottom:2px solid var(--ink)}
+.doc-firm{font-size:18px;font-weight:600;letter-spacing:-.015em}
+.doc-firm span{display:block;font-family:"JetBrains Mono",monospace;font-size:9.5px;letter-spacing:.13em;
+  text-transform:uppercase;color:var(--ash);margin-top:3px;font-weight:400}
+.doc-meta{text-align:right;font-family:"JetBrains Mono",monospace;font-size:11px;color:var(--slate);line-height:1.8}
+.doc-meta em{font-style:normal;color:var(--ash)}
+.doc-h1{font-size:27px;font-weight:600;letter-spacing:-.025em;line-height:1.15;margin:0}
+.doc-h1 em{display:block;font-style:normal;font-size:.52em;font-weight:400;color:var(--slate);margin-top:7px;
+  letter-spacing:-.01em}
+.sec{display:flex;flex-direction:column;gap:14px}
+.sec-h{display:flex;flex-wrap:wrap;align-items:baseline;gap:12px;padding-bottom:9px;border-bottom:1px solid var(--hairline)}
+.sec-c{font-family:"JetBrains Mono",monospace;font-size:10px;letter-spacing:.08em;color:var(--primary);
+  background:var(--accent);border-radius:5px;padding:3px 7px}
+.sec-h h2{font-size:19px;font-weight:600;margin:0;letter-spacing:-.018em;flex:1;min-width:0}
+.sec-n{font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--ash)}
+.sec-rm{font-size:11px;color:var(--ash);border:1px solid var(--hairline);border-radius:5px;padding:3px 8px}
+.sec-rm:hover{color:var(--destructive);border-color:var(--destructive)}
+.narr{display:flex;flex-direction:column;gap:11px;border-left:3px solid var(--primary);padding-left:16px;max-width:82ch}
+.narr p{margin:0;font-size:14px;line-height:1.66;color:var(--slate)}
+.narr p b{color:var(--ink);font-weight:600}
+.doc table{font-size:13px}
+.doc thead th{background:transparent;border-bottom:1px solid var(--ink);padding:0 10px 7px}
+.doc tbody td,.doc tbody th{padding:6.5px 10px}
+.doc tbody th{padding-left:0;font-weight:400}
+.doc thead th:first-child{padding-left:0}
+tr.ind th{padding-left:15px;color:var(--slate)}
+tr.sub th,tr.sub td{font-weight:600;background:var(--mist);border-top:1px solid var(--hairline);border-bottom:1px solid var(--hairline)}
+tr.tot th,tr.tot td{font-weight:600;font-size:13.5px;border-top:1px solid var(--ink);border-bottom:3px double var(--ink)}
+tr.gap td{border:0;height:9px;padding:0}
+.fnote{font-size:11.5px;color:var(--ash);line-height:1.62;max-width:96ch;margin:0}
+.d{border-bottom:1px dashed var(--primary);color:inherit;padding:0 1px;
+  font-family:"JetBrains Mono",monospace;font-variant-numeric:tabular-nums;font-size:inherit}
+.d:hover{background:var(--accent);color:var(--primary)}
+.d::after{content:"›";margin-left:3px;color:var(--primary);font-weight:600}
+.barc{width:120px;padding-right:0!important}
+.bart{height:8px;background:var(--accent);border-radius:2px;overflow:hidden}
+.barf{height:100%;background:var(--primary)}
+.barf.add{background:var(--moss)}
+.stack{display:flex;gap:2px;height:38px}
+.stseg{border-radius:2px;display:grid;place-items:center;min-width:3px}
+.stseg span{font-family:"JetBrains Mono",monospace;font-size:10.5px;font-weight:500;color:#fff;
+  text-shadow:0 1px 2px rgba(0,0,0,.35)}
+.leg{display:flex;flex-wrap:wrap;gap:5px 18px}
+.leg-i{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--slate)}
+.sw{width:10px;height:10px;border-radius:2px;flex:none}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(158px,1fr));gap:12px}
+.kpi{background:var(--paper);border:1px solid var(--hairline);border-radius:var(--r-card);padding:13px 15px;
+  display:flex;flex-direction:column;gap:3px}
+.kpi-l{font-size:11px;font-weight:500;text-transform:uppercase;letter-spacing:.02em;color:var(--ash)}
+.kpi-v{font-size:23px;font-weight:600;letter-spacing:-.025em;line-height:1.15;font-variant-numeric:tabular-nums}
+.kpi-v small{font-size:.48em;color:var(--ash);margin-right:2px;font-weight:500}
+.kpi-d{font-size:11.5px}
+.sigs{display:grid;grid-template-columns:repeat(auto-fit,minmax(168px,1fr));gap:12px}
+.sig{background:var(--mist);border:1px solid var(--hairline);border-radius:var(--r-small);padding:11px 13px;
+  display:flex;flex-direction:column;gap:2px}
+.sig-r{font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--ash)}
+.sig-w{font-size:13px;font-weight:500}
+.sig-t{font-family:"JetBrains Mono",monospace;font-size:10.5px;color:var(--slate)}
+
+/* ---------- charts ---------- */
+.chartbox{border:1px solid var(--hairline);border-radius:var(--r-card);padding:14px 16px 10px;background:var(--paper)}
+.chart-t{display:flex;flex-wrap:wrap;align-items:baseline;gap:10px;margin-bottom:10px}
+.chart-t b{font-size:13px;font-weight:600}
+.chart-t span{font-size:11.5px;color:var(--ash);margin-left:auto;font-family:"JetBrains Mono",monospace}
+.chartbox svg{display:block;width:100%;height:auto;overflow:visible}
+.xlabels{display:flex;justify-content:space-between;margin-top:7px;font-family:"JetBrains Mono",monospace;
+  font-size:10.5px;color:var(--ash)}
+
+/* ---------- chat ---------- */
+.chat{position:sticky;top:84px;display:flex;flex-direction:column;height:calc(100vh - 116px);min-height:540px;
+  background:var(--paper);border:1px solid var(--hairline);border-radius:var(--r-card);box-shadow:var(--sh);overflow:hidden}
+.chat-h{padding:12px 16px;border-bottom:1px solid var(--hairline);display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.chat-h b{font-size:14px;font-weight:600}
+.chat-mode{display:inline-flex;border:1px solid var(--hairline);border-radius:var(--r-small);overflow:hidden;margin-left:auto}
+.chat-mode button{padding:5px 11px;font-size:12px;color:var(--slate);border-right:1px solid var(--hairline)}
+.chat-mode button:last-child{border-right:0}
+.chat-mode button[aria-pressed="true"]{background:var(--primary);color:#fff}
+.chat-note{padding:9px 16px;background:var(--mist);border-bottom:1px solid var(--hairline);
+  font-size:11.5px;color:var(--slate);line-height:1.5}
+.chat-log{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:14px}
+.msg{display:flex;flex-direction:column;gap:5px;max-width:94%}
+.msg.me{align-self:flex-end;align-items:flex-end}
+.msg-b{padding:10px 13px;border-radius:11px;font-size:13.5px;line-height:1.6}
+.msg.me .msg-b{background:var(--primary);color:#fff;border-bottom-right-radius:3px}
+.msg.ai .msg-b{background:var(--mist);border:1px solid var(--hairline);border-bottom-left-radius:3px}
+.msg-w{font-size:10.5px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--ash)}
+.msg-act{display:inline-flex;align-items:center;gap:6px;margin-top:7px;padding:5px 9px;border-radius:6px;
+  background:var(--sage);color:var(--moss);font-size:11.5px;font-weight:500}
+.msg-drill{margin-top:8px;padding:6px 10px;border:1px solid var(--primary);border-radius:6px;color:var(--primary);
+  font-size:12px;font-weight:500;display:inline-flex;gap:6px;align-items:center}
+.msg-drill:hover{background:var(--accent)}
+.msg-blocked{margin-top:7px;padding:8px 10px;border-radius:6px;background:#fdecea;color:var(--destructive);
+  font-size:12px;line-height:1.5}
+.chat-sug{display:flex;flex-wrap:wrap;gap:6px;padding:11px 16px;border-top:1px solid var(--hairline);background:var(--mist)}
+.sug{padding:5px 10px;border:1px solid var(--hairline);border-radius:9999px;font-size:12px;color:var(--slate);background:var(--paper)}
+.sug:hover{border-color:var(--primary);color:var(--primary)}
+.chat-in{display:flex;gap:8px;padding:12px 14px;border-top:1px solid var(--hairline)}
+.chat-in input{flex:1;background:var(--paper);border:1px solid var(--hairline);border-radius:var(--r-small);
+  padding:10px 12px;font:inherit;font-size:13.5px;color:var(--ink);height:38px}
+.chat-in button{padding:0 16px;border-radius:var(--r-small);background:var(--primary);color:#fff;
+  font-weight:600;font-size:13.5px;height:38px}
+
+/* ---------- drawer ---------- */
+.scrim{position:fixed;inset:0;background:rgba(33,35,47,.42);z-index:60;opacity:0;pointer-events:none;transition:opacity .2s ease}
+.scrim.on{opacity:1;pointer-events:auto}
+.drawer{position:fixed;top:0;right:0;bottom:0;width:min(560px,100%);z-index:61;background:var(--paper);
+  border-left:1px solid var(--hairline);box-shadow:var(--sh-pop);transform:translateX(102%);
+  transition:transform .24s cubic-bezier(.4,0,.2,1);display:flex;flex-direction:column}
+.drawer.on{transform:none}
+@media (prefers-reduced-motion:reduce){.scrim,.drawer{transition:none}}
+.dr-h{padding:16px 20px;border-bottom:1px solid var(--hairline);display:flex;align-items:flex-start;gap:14px;background:var(--mist)}
+.dr-h h3{margin:0;font-size:16px;font-weight:600;letter-spacing:-.015em}
+.dr-h p{margin:4px 0 0;font-size:12.5px;color:var(--ash)}
+.dr-x{margin-left:auto;width:32px;height:32px;border-radius:var(--r-small);border:1px solid var(--hairline);
+  display:grid;place-items:center;color:var(--slate);flex:none;background:var(--paper)}
+.dr-x:hover{background:var(--mist);color:var(--ink)}
+.dr-b{flex:1;overflow-y:auto;padding:20px}
+.chain{display:flex;flex-direction:column}
+.step{display:grid;grid-template-columns:26px minmax(0,1fr);gap:14px}
+.step-rail{display:flex;flex-direction:column;align-items:center;gap:4px}
+.step-dot{width:11px;height:11px;border-radius:50%;border:2px solid var(--primary);background:var(--paper);margin-top:5px;flex:none}
+.step:last-child .step-dot{background:var(--primary)}
+.step-line{flex:1;width:2px;background:var(--hairline);min-height:14px}
+.step:last-child .step-line{display:none}
+.step-b{padding-bottom:18px;display:flex;flex-direction:column;gap:3px;min-width:0}
+.step-k{font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--ash)}
+.step-v{font-size:14.5px;font-weight:600;letter-spacing:-.015em}
+.step-n{font-family:"JetBrains Mono",monospace;font-size:12.5px;color:var(--slate);font-variant-numeric:tabular-nums}
+.step-s{font-size:12px;color:var(--ash);line-height:1.5}
+.step:last-child .step-v,.step:last-child .step-n{color:var(--primary)}
+.dr-src{margin-top:6px;padding:13px 15px;border:1px solid var(--hairline);border-radius:var(--r-small);
+  background:var(--mist);display:flex;flex-direction:column;gap:7px}
+.dr-src .r{display:flex;justify-content:space-between;gap:14px;font-size:12.5px}
+.dr-src .r span{color:var(--ash);font-size:11px;letter-spacing:.04em;text-transform:uppercase}
+.dr-src .r b{font-family:"JetBrains Mono",monospace;font-weight:500;font-variant-numeric:tabular-nums}
+.dr-f{padding:14px 20px;border-top:1px solid var(--hairline);background:var(--mist);font-size:12px;
+  color:var(--ash);line-height:1.55}
+@media (max-width:640px){
+  .main{padding:16px 14px 60px}.doc{padding:20px 17px 24px}
+  .exrow{grid-template-columns:minmax(0,1fr)}
+  .chat{height:auto;min-height:0;position:static}.chat-log{max-height:460px}
+  .layer{grid-template-columns:44px minmax(0,1fr)}
+}
+</style><style>
+/* ================= AR / AP modules ================= */
+.utabs{display:flex;flex-wrap:wrap;gap:24px;border-bottom:1px solid var(--hairline);margin-bottom:4px}
+.utabs button{padding:10px 0 12px;font-size:14px;font-weight:500;color:var(--slate);
+  border-bottom:2px solid transparent;margin-bottom:-1px;white-space:nowrap}
+.utabs button:hover{color:var(--ink)}
+.utabs button[aria-current="true"]{color:var(--primary);border-bottom-color:var(--primary)}
+.scards{display:grid;grid-template-columns:repeat(auto-fit,minmax(206px,1fr));gap:14px}
+.scard{background:var(--paper);border:1px solid var(--hairline);border-radius:var(--r-card);
+  box-shadow:var(--sh);padding:16px 18px;display:flex;flex-direction:column;gap:5px}
+.scard-l{font-size:11px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--ash)}
+.scard-v{font-size:28px;font-weight:600;letter-spacing:-.03em;line-height:1.12;font-variant-numeric:tabular-nums}
+.scard-v small{font-size:.48em;font-weight:500;color:var(--ash);margin-right:3px}
+.scard-v.blue{color:var(--primary)} .scard-v.green{color:var(--moss)}
+.scard-v.amber{color:#c2650c} .scard-v.red{color:var(--destructive)} .scard-v.violet{color:#7c3aed}
+.scard-d{font-size:12px;color:var(--ash)}
+.dcard{background:var(--paper);border:1px solid var(--hairline);border-radius:var(--r-card);
+  box-shadow:var(--sh);overflow:hidden}
+.dcard-h{display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px;padding:15px 18px;
+  border-bottom:1px solid var(--hairline)}
+.dcard-h b{font-size:15px;font-weight:600;letter-spacing:-.012em}
+.dcard-h .cnt{font-size:12.5px;color:var(--ash);flex-basis:100%}
+.dcard-h .rt{margin-left:auto;display:flex;gap:8px;align-items:center}
+.dcard .tscroll table thead th{background:var(--fog);padding:11px 18px}
+.dcard .tscroll table tbody td,.dcard .tscroll table tbody th{padding:13px 18px}
+.dcard .tscroll table tbody tr:last-child td,.dcard .tscroll table tbody tr:last-child th{border-bottom:0}
+.dcard .tscroll table tbody tr:hover td,.dcard .tscroll table tbody tr:hover th{background:var(--fog)}
+.btn{display:inline-flex;align-items:center;gap:7px;height:34px;padding:0 14px;border-radius:var(--r-small);
+  font-size:13px;font-weight:500;border:1px solid var(--hairline);background:var(--paper);color:var(--ink)}
+.btn:hover{background:var(--mist)}
+.btn.pri{background:var(--primary);border-color:var(--primary);color:#fff}
+.btn.pri:hover{opacity:.92}
+.tag{display:inline-flex;align-items:center;padding:3px 9px;border-radius:6px;font-size:11.5px;
+  font-weight:500;white-space:nowrap;background:var(--mist);color:var(--slate)}
+.stat{display:inline-flex;align-items:center;padding:3px 9px;border-radius:6px;font-size:12px;
+  font-weight:500;white-space:nowrap}
+.s-posted,.s-synced,.s-matched,.s-paid,.s-cleared{background:var(--sage);color:var(--moss)}
+.s-confirmed,.s-scheduled{background:#eef2ff;color:var(--primary)}
+.s-pending,.s-draft{background:var(--mist);color:var(--slate)}
+.s-progress,.s-manual,.s-review{background:#f5f0ff;color:#7c3aed}
+.s-partial,.s-held{background:#fff7ed;color:#c2650c}
+.s-failed,.s-unmatched,.s-overdue{background:#fdecea;color:var(--destructive)}
+.dot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:9px;vertical-align:1px}
+.rate{display:inline-flex;align-items:center;gap:10px;justify-content:flex-end}
+.rate-t{width:92px;height:7px;border-radius:4px;background:var(--accent);overflow:hidden;flex:none}
+.rate-f{height:100%;border-radius:4px}
+.modhead{display:flex;flex-wrap:wrap;align-items:flex-start;justify-content:space-between;gap:12px}
+.modhead .eyebrow{font-size:11px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;
+  color:var(--ash);margin:0 0 4px}
+.modhead h1{font-size:22px;font-weight:600;letter-spacing:-.022em;margin:0}
+.modhead p{margin:6px 0 0;font-size:13.5px;color:var(--slate);max-width:92ch}
+.modpane[hidden]{display:none}
+.modpane{display:flex;flex-direction:column;gap:16px}
+</style>
+
+
+</head>
+<body>
+<div class="banner">
+  <b>Prototype</b>
+  <span>An interactive walkthrough of Propel, shown through a fictional firm.</span>
+  <span class="sep">·</span>
+  <span>Every firm, client, figure, supplier and document here is invented. No real business is described.</span>
+  <span class="sep">·</span>
+  <a href="../" style="color:inherit;font-weight:500">← Back to Propel</a>
+</div>
+
+<header class="topbar">
+  <div class="topbar-in">
+    <div class="brand">
+      <div class="brand-mark">M</div>
+      <div>
+        <div class="brand-name">Meridian Advisory</div>
+        <div class="brand-sub">Client Cockpit · August 2026</div>
+      </div>
+    </div>
+    <nav class="nav" id="nav">
+      <button data-view="portfolio" aria-current="true">Clients</button>
+      <button data-view="method">How it works</button>
+    </nav>
+  </div>
+</header>
+
+<main class="main">
+
+  <!-- ============== CLIENTS ============== -->
+  <section class="view" id="v-portfolio">
+    <div class="page-head">
+      <div>
+        <h1>Clients</h1>
+        <p class="page-sub">A sample of the recurring book, the state of each month, and what is waiting on a person.
+          Pick a client to open their workspace.</p>
+      </div>
+      <span class="chip live">Live today</span>
+    </div>
+
+    <div class="tiles" id="pfTiles"></div>
+
+    <div class="panel">
+      <div class="filters">
+        <div class="fgroup"><span class="flabel">Search</span>
+          <input type="search" id="fSearch" placeholder="Client or owner" aria-label="Search clients"></div>
+        <div class="fgroup"><span class="flabel">Country</span>
+          <select id="fCountry" aria-label="Filter by country"><option value="">All</option></select></div>
+        <div class="fgroup"><span class="flabel">Vertical</span>
+          <select id="fVertical" aria-label="Filter by vertical"><option value="">All</option></select></div>
+        <div class="fgroup"><span class="flabel">Stage</span>
+          <select id="fStage" aria-label="Filter by stage"><option value="">All</option></select></div>
+        <button class="fclear" id="fClear">Clear</button>
+        <span class="fspacer" id="fCount"></span>
+      </div>
+      <div class="tscroll">
+        <table id="pfTable">
+          <thead><tr>
+            <th class="sortable" data-k="name">Client<span class="arr">↕</span></th>
+            <th class="sortable" data-k="vertical">Vertical<span class="arr">↕</span></th>
+            <th class="sortable" data-k="country">Country<span class="arr">↕</span></th>
+            <th>Ledger</th>
+            <th class="sortable" data-k="stage">Stage<span class="arr">↕</span></th>
+            <th class="sortable" data-k="pct">Reconciled<span class="arr">↕</span></th>
+            <th class="sortable" data-k="openN">Needs a person<span class="arr">↕</span></th>
+            <th class="sortable" data-k="owner">Owner<span class="arr">↕</span></th>
+            <th class="sortable" data-k="dueSort">Pack due<span class="arr">↕</span></th>
+          </tr></thead>
+          <tbody id="pfBody"></tbody>
+        </table>
+      </div>
+    </div>
+    <p class="fnote" id="pfNote" style="margin-top:2px"></p>
+  </section>
+
+  <!-- ============== CLIENT ============== -->
+  <section class="view" id="v-client" hidden>
+    <div class="chead">
+      <button class="back" id="backBtn">← Clients</button>
+      <div class="chead-id"><b id="cName"></b><span id="cSub"></span></div>
+      <div class="chead-tabs" id="cTabs">
+        <button data-tab="ingest">Ingestion</button>
+        <button data-tab="ar">Receivables</button>
+        <button data-tab="ap">Payables</button>
+        <button data-tab="recon">Reconciliation <span class="badge" id="bRecon">0</span></button>
+        <button data-tab="insights">Insights <span class="badge" id="bIns">0</span></button>
+        <button data-tab="pack" aria-current="true">MIS pack</button>
+      </div>
+    </div>
+
+    <!-- ingestion -->
+    <div id="t-ingest" hidden>
+      <div class="page-head" style="margin-bottom:14px">
+        <div><h1 style="font-size:20px">Ingestion</h1>
+          <p class="page-sub">Every file and feed that feeds the month. A new source is a mapping profile, not an
+            engineering job: the columns are inferred from the header and a sample, and a person confirms them once.</p></div>
+        <span class="chip live">Live today</span>
+      </div>
+      <div class="srcgrid" id="igGrid"></div>
+      <p class="fnote" style="margin-top:14px" id="igNote"></p>
+      <div class="subhead" style="margin:26px 0 12px"><h3>Import batches</h3><span class="chip live">Live today</span></div>
+      <div class="panel"><div class="tscroll"><table id="igImports"></table></div></div>
+      <p class="fnote" style="margin-top:12px">A run is an import batch, not a silo. Canonical rows outlive the run that
+        imported them, rows upsert on their source ID, and every import re-matches the whole open book, so a July payout
+        settles a June order.</p>
+    </div>
+
+    <!-- receivables -->
+    <div id="t-ar" hidden>
+      <div class="modhead">
+        <div><p class="eyebrow">Accounts receivable</p><h1 id="arTitle">Revenue activity</h1>
+          <p id="arSub"></p></div>
+        <span class="chip build">Build</span>
+      </div>
+      <div class="utabs" id="arTabs">
+        <button data-p="revenue" aria-current="true">Revenue Activity</button>
+        <button data-p="posting">Sales Posting</button>
+        <button data-p="ageing">Ageing</button>
+      </div>
+      <div id="arBody" class="modpane"></div>
+    </div>
+
+    <!-- payables -->
+    <div id="t-ap" hidden>
+      <div class="modhead">
+        <div><p class="eyebrow">Accounts payable</p><h1 id="apTitle">Bill activity</h1>
+          <p id="apSub"></p></div>
+        <span class="chip road">Roadmap, not started</span>
+      </div>
+      <div class="utabs" id="apTabs">
+        <button data-p="bills" aria-current="true">Bill Activity</button>
+        <button data-p="billpay">Bill Payment Activity</button>
+        <button data-p="txns">Transactions Activity</button>
+        <button data-p="bank">Bank Activity</button>
+        <button data-p="payroll">Payroll Activity</button>
+        <button data-p="ageing">Ageing</button>
+      </div>
+      <div id="apBody" class="modpane"></div>
+    </div>
+
+    <!-- reconciliation -->
+    <div id="t-recon" hidden>
+      <div class="page-head" style="margin-bottom:14px">
+        <div><h1 style="font-size:20px">Reconciliation</h1>
+          <p class="page-sub" id="rcIntro"></p></div>
+        <span class="chip live">Live today</span>
+      </div>
+      <div class="rclayout">
+        <aside class="rail" id="rcRail"></aside>
+        <div id="rcPanes">
+          <div class="rcpane" id="pane-layers">
+            <div class="paneh"><h2>Match layers</h2><span class="chip live">Live today</span>
+              <p>Four layers, each a named pass in the engine. Every match is deterministic SQL: the model infers column
+                mappings on ingest and never produces a number.</p></div>
+            <div class="panel"><div class="layers" id="rcLayers"></div></div>
+          </div>
+          <div class="rcpane" id="pane-grids" hidden>
+            <div class="paneh"><h2>The ledger in the raw</h2><span class="chip live">Live today</span>
+              <p>Canonical rows as the engine holds them. In the app each of these opens as a filterable grid with running
+                totals and a CSV export of whatever you have filtered to.</p></div>
+            <div class="gridcounts" id="rcGrids"></div>
+          </div>
+          <div class="rcpane" id="pane-exc" hidden>
+            <div class="paneh"><h2>Exceptions</h2><span class="chip live">Live today</span>
+              <p>Categories and states are the engine's own. An exception is not a task-list item: it is a row the match
+                passes could not place, routed to whoever owns it.</p></div>
+            <div class="panel">
+              <div class="qbar">
+                <div class="seg" id="rcFilter"><button data-f="open" aria-pressed="true">Unresolved</button>
+                  <button data-f="all" aria-pressed="false">All</button></div>
+                <span class="fspacer" id="rcCount"></span></div>
+              <div id="rcExc"></div></div>
+          </div>
+          <div class="rcpane" id="pane-rar" hidden>
+            <div class="paneh"><h2>Recon &ndash; AR</h2><span class="chip live">Live today</span>
+              <p>Receivables reconciliation, layer by layer. Every pair is matched by rule; only what falls out
+                reaches a person.</p></div>
+            <div id="rcRAR" class="modpane"></div>
+          </div>
+          <div class="rcpane" id="pane-rap" hidden>
+            <div class="paneh"><h2>Recon &ndash; AP</h2><span class="chip road">Roadmap, not started</span>
+              <p>The same shape applied to payables. The engine has no supplier or bill entity today, so these
+                pairs are what the module would produce, not what it produces now.</p></div>
+            <div id="rcRAP" class="modpane"></div>
+          </div>
+          <div class="rcpane" id="pane-close" hidden>
+            <div class="paneh"><h2>Close adjustments</h2>
+              <p>Cut-off, estimates and treatments that need a decision before the books lock. Bookkeeping judgement,
+                not business judgement: that lives on the Insights tab.</p></div>
+            <div id="rcClose" class="ig"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- insights -->
+    <div id="t-insights" hidden>
+      <div class="page-head" style="margin-bottom:14px">
+        <div><h1 style="font-size:20px">Insights</h1>
+          <p class="page-sub" id="inIntro"></p></div>
+        <span class="chip build">Build</span>
+      </div>
+      <div class="tiles" id="inTiles" style="margin-bottom:22px"></div>
+      <div id="inBody" class="ig"></div>
+    </div>
+
+    <!-- pack -->
+    <div id="t-pack">
+      <div class="page-head" style="margin-bottom:14px">
+        <div><h1 style="font-size:20px">The monthly pack</h1>
+          <p class="page-sub">Every figure traces to a transaction. Click any underlined number to walk it down.
+            The assistant changes what is in the pack, never what the numbers say.</p></div>
+        <span class="chip build">Build</span>
+      </div>
+      <div class="packlayout">
+        <article class="doc" id="packDoc"></article>
+        <aside class="chat">
+          <div class="chat-h">
+            <b>Assistant</b>
+            <div class="chat-mode" id="chatMode">
+              <button data-m="firm" aria-pressed="true">Accountant view</button>
+              <button data-m="client" aria-pressed="false">Client view</button>
+            </div>
+          </div>
+          <div class="chat-note" id="chatNote"></div>
+          <div class="chat-log" id="chatLog"></div>
+          <div class="chat-sug" id="chatSug"></div>
+          <form class="chat-in" id="chatForm">
+            <input id="chatInput" autocomplete="off" placeholder="Ask or instruct…" aria-label="Message">
+            <button type="submit">Send</button>
+          </form>
+        </aside>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============== METHOD ============== -->
+  <section class="view" id="v-method" hidden>
+    <div class="page-head">
+      <div><h1>What is real, and what is not</h1>
+        <p class="page-sub">A prototype earns nothing if it oversells. This is the honest split, taken from
+          the build state of the engine as at August 2026.</p></div>
+    </div>
+    <div class="panel"><div class="panel-body" id="methodBody"></div></div>
+  </section>
+
+</main>
+
+<div class="scrim" id="scrim"></div>
+<aside class="drawer" id="drawer" role="dialog" aria-modal="true" aria-labelledby="drTitle">
+  <div class="dr-h">
+    <div><h3 id="drTitle">Query trail</h3><p id="drSub"></p></div>
+    <button class="dr-x" id="drClose" aria-label="Close">✕</button>
+  </div>
+  <div class="dr-b" id="drBody"></div>
+  <div class="dr-f">Every step is a stored record, not a recalculation. A client question that lands on
+    a number can be answered from this chain without reopening the books.</div>
+</aside>
+<script>
+const CUR={UAE:'AED',KSA:'SAR',Bahrain:'BHD',Qatar:'QAR'};
+const n=v=>v.toLocaleString('en-US',{maximumFractionDigits:0});
+const n1=v=>v.toLocaleString('en-US',{minimumFractionDigits:1,maximumFractionDigits:1});
+const FIRM_BOOK=214;
+
+const CLIENTS=[
+ {id:'dallah',name:'Dallah Coffee Roasters',vertical:'F&B',country:'UAE',ledger:'Zoho Books',stage:'Review',
+  pct:99.4,owner:'Rhea M.',due:'20 Aug',dueSort:20,pack:'fnb',full:true},
+ {id:'cedar',name:'Cedar Clinic Group',vertical:'Healthcare',country:'UAE',ledger:'Zoho Books',stage:'Review',
+  pct:97.1,owner:'Sami K.',due:'22 Aug',dueSort:22,pack:'clinic',full:true},
+ {id:'rasheed',name:'Rasheed Trading FZC',vertical:'Trading',country:'KSA',ledger:'Tally',stage:'Reconciling',
+  pct:92.6,owner:'Dev P.',due:'24 Aug',dueSort:24,pack:'trading',full:true},
+ {id:'halcyon',name:'Halcyon Hotels',vertical:'Hospitality',country:'UAE',ledger:'Odoo',stage:'Reconciling',
+  pct:90.5,owner:'Aisha R.',due:'25 Aug',dueSort:25,openN:12},
+ {id:'gulfplay',name:'Gulf Play Entertainment',vertical:'Entertainment',country:'Qatar',ledger:'QuickBooks',
+  stage:'Blocked',pct:68.4,owner:'Dev P.',due:'25 Aug',dueSort:25,openN:11},
+ {id:'zayn',name:'Zayn Retail Group',vertical:'Retail',country:'UAE',ledger:'Zoho Books',stage:'Signed off',
+  pct:100,owner:'Aisha R.',due:'21 Aug',dueSort:21,openN:0}
+];
+
+const MORE=[
+ ['barakah','Barakah Bakehouse','Bakery','UAE','Zoho Books','Signed off',100,'Rhea M.',18,0],
+ ['marina','Marina Dental','Healthcare','UAE','Zoho Books','Signed off',100,'Sami K.',19,0],
+ ['onyx','Onyx Salon Chain','Services','UAE','Zoho Books','Signed off',100,'Noor H.',18,0],
+ ['lantern','Lantern Bookshops','Retail','UAE','Zoho Books','Signed off',100,'Aisha R.',19,0],
+ ['meraki','Meraki Cafés','F&B','Bahrain','Zoho Books','Review',96.3,'Rhea M.',22,5],
+ ['amber','Amber Pharmacy Group','Healthcare','UAE','Odoo','Review',98.1,'Sami K.',21,3],
+ ['zenith','Zenith Optics','Retail','UAE','Zoho Books','Review',97.6,'Aisha R.',21,4],
+ ['cobalt','Cobalt IT Services','Technology','UAE','Zoho Books','Review',99.1,'Noor H.',22,2],
+ ['juniper','Juniper Fine Foods','F&B','UAE','Zoho Books','Review',95.8,'Rhea M.',23,6],
+ ['ivory','Ivory Beauty Clinics','Healthcare','UAE','Zoho Books','Review',94.2,'Sami K.',23,7],
+ ['kite','Kite Digital Agency','Services','UAE','Zoho Books','Review',98.9,'Noor H.',22,2],
+ ['pearl','Pearl Logistics WLL','Logistics','Bahrain','Tally','Reconciling',88.2,'Dev P.',24,7],
+ ['harbour','Harbour Seafood Co.','F&B','Bahrain','Zoho Books','Reconciling',91.4,'Rhea M.',24,9],
+ ['atlas','Atlas Freight Forwarding','Logistics','KSA','Tally','Reconciling',86.7,'Dev P.',25,11],
+ ['souq','Souq Spice Traders','Trading','UAE','Tally','Reconciling',89.9,'Dev P.',24,8],
+ ['terra','Terra Building Materials','Trading','KSA','Tally','Reconciling',84.3,'Dev P.',26,13],
+ ['northwind','Northwind Cold Storage','Logistics','KSA','Tally','Reconciling',87.5,'Faisal A.',25,10],
+ ['basalt','Basalt Quarry Supplies','Trading','Bahrain','Tally','Reconciling',90.1,'Faisal A.',25,8],
+ ['falcon','Falcon Auto Care','Automotive','UAE','Tally','Reconciling',92.8,'Priya N.',24,6],
+ ['prism','Prism Print Works','Manufacturing','UAE','Odoo','Reconciling',93.6,'Priya N.',25,5],
+ ['lumen','Lumen Interiors','Construction','UAE','Odoo','Reconciling',85.9,'Aisha R.',26,12],
+ ['crescent','Crescent Catering','F&B','Qatar','Odoo','Reconciling',89.2,'Omar B.',25,9],
+ ['summit','Summit Facilities Mgmt','Services','Qatar','Odoo','Reconciling',88.8,'Omar B.',26,10],
+ ['verdant','Verdant Landscaping','Services','Qatar','Tally','Collecting',52.4,'Omar B.',27,4],
+ ['nova','Nova Fitness Clubs','Leisure','UAE','Xero','Collecting',41.0,'Noor H.',26,3],
+ ['bright','Bright Steps Nursery','Education','UAE','Xero','Collecting',38.7,'Priya N.',27,2],
+ ['willow','Willow Home Care','Healthcare','UAE','Xero','Collecting',44.9,'Sami K.',27,3],
+ ['sahara','Sahara Foodstuff Trading','Trading','KSA','Tally','Collecting',33.0,'Dev P.',27,2],
+ ['dune','Dune Adventure Tours','Travel','UAE','QuickBooks','Collecting',29.6,'Priya N.',28,1],
+ ['azure','Azure Pools & Landscaping','Services','UAE','QuickBooks','Collecting',47.2,'Faisal A.',27,3],
+ ['coral','Coral Reef Diving','Leisure','UAE','QuickBooks','Collecting',35.8,'Faisal A.',28,2],
+ ['solstice','Solstice Events','Entertainment','UAE','QuickBooks','Blocked',71.3,'Omar B.',26,14],
+ ['vertex','Vertex Contracting','Construction','Qatar','Odoo','Blocked',74.9,'Sami K.',26,16]
+].map(r=>({id:r[0],name:r[1],vertical:r[2],country:r[3],ledger:r[4],stage:r[5],pct:r[6],
+  owner:r[7],due:r[8]+' Aug',dueSort:r[8],openN:r[9]}));
+CLIENTS.push(...MORE);
+
+const byId=id=>CLIENTS.find(c=>c.id===id);
+
+/* ---------------- ingestion ---------------- */
+const INGEST={
+ dallah:{sources:[
+  {n:'Zoho Books',t:'General ledger',k:'api',p:'zoho_gl_v2',rows:'1,284 journal lines',fresh:'6h ago'},
+  {n:'Skillet POS',t:'6 outlets, daily export',k:'file',p:'skillet_sales_v3',rows:'95,690 tickets',fresh:'1d ago'},
+  {n:'Orbit',t:'Settlement reports',k:'api',p:'orbit_payout_v1',rows:'4 payout files',fresh:'8h ago'},
+  {n:'Zephyr',t:'Payout files',k:'file',p:'zephyr_payout_v2',rows:'3 payout files',fresh:'2d ago'},
+  {n:'Nimbus Now',t:'Payout files',k:'file',p:'nimbus_payout_v1',rows:'4 payout files',fresh:'2d ago'},
+  {n:'Levant Pay',t:'Card acquirer',k:'api',p:'ni_acquirer_v1',rows:'62,410 transactions',fresh:'7h ago'},
+  {n:'Gulf Union Bank',t:'2 accounts, PDF statement',k:'file',p:'gulfunion_pdf_v1',rows:'892 bank lines',fresh:'1d ago'},
+  {n:'Emirates NBD',t:'1 account, PDF statement',k:'wait',p:'enbd_pdf_v1',rows:'awaiting 31 Aug',fresh:'chased 26 Aug'}],
+  imports:[['IMP-2026-0812','12 Aug','Skillet POS','31 files','92,410 rows','complete'],
+           ['IMP-2026-0818','18 Aug','Orbit + Nimbus','8 files','21,880 rows','complete'],
+           ['IMP-2026-0821','21 Aug','Zephyr','3 files','2,214 rows','complete'],
+           ['IMP-2026-0825','25 Aug','Gulf Union Bank PDF','2 files','892 rows','complete'],
+           ['IMP-2026-0827','27 Aug','Zoho Books','1 feed','1,284 rows','complete']]},
+ cedar:{sources:[
+  {n:'Zoho Books',t:'General ledger',k:'api',p:'zoho_gl_v2',rows:'986 journal lines',fresh:'6h ago'},
+  {n:'Clinic PMS',t:'3 sites, encounters',k:'file',p:'pms_encounter_v2',rows:'4,860 encounters',fresh:'1d ago'},
+  {n:'Daman',t:'Insurance remittance',k:'file',p:'daman_remit_v1',rows:'3 of 3 files',fresh:'3d ago'},
+  {n:'Thiqa',t:'Insurance remittance',k:'file',p:'thiqa_remit_v1',rows:'2 of 3 files',fresh:'chased 24 Aug'},
+  {n:'Sentinel Health',t:'Insurance remittance',k:'wait',p:'sentinel_remit_v1',rows:'July file absent',fresh:'chased 25 Aug'},
+  {n:'Mashreq Bank',t:'1 account, PDF statement',k:'file',p:'mashreq_pdf_v1',rows:'486 bank lines',fresh:'2d ago'}],
+  imports:[['IMP-2026-0814','14 Aug','Clinic PMS','31 files','4,860 rows','complete'],
+           ['IMP-2026-0819','19 Aug','Daman + Thiqa','5 files','3,914 rows','complete'],
+           ['IMP-2026-0824','24 Aug','Mashreq PDF','1 file','486 rows','complete'],
+           ['IMP-2026-0827','27 Aug','Zoho Books','1 feed','986 rows','complete']]},
+ rasheed:{sources:[
+  {n:'Tally ERP',t:'General ledger, export',k:'file',p:'tally_gl_v1',rows:'2,410 journal lines',fresh:'2d ago'},
+  {n:'ZATCA e-invoicing',t:'Sales invoices',k:'api',p:'zatca_inv_v1',rows:'1,842 invoices',fresh:'5h ago'},
+  {n:'Warehouse WMS',t:'Stock movements',k:'file',p:'wms_stock_v1',rows:'3,914 movements',fresh:'3d ago'},
+  {n:'Riyad Bank',t:'2 accounts, PDF statement',k:'file',p:'riyad_pdf_v1',rows:'892 bank lines',fresh:'2d ago'},
+  {n:'FX contracts',t:'USD forward cover',k:'wait',p:'not mapped',rows:'2 confirmations absent',fresh:'chased 26 Aug'}],
+  imports:[['IMP-2026-0815','15 Aug','ZATCA feed','1 feed','1,842 rows','complete'],
+           ['IMP-2026-0820','20 Aug','Warehouse WMS','1 file','3,914 rows','complete'],
+           ['IMP-2026-0825','25 Aug','Riyad Bank PDF','2 files','892 rows','partial'],
+           ['IMP-2026-0826','26 Aug','Tally export','1 file','2,410 rows','complete']]}};
+
+/* ---------------- reconciliation ---------------- */
+const RECON={
+ dallah:{
+  layers:[['L1','Order ↔ Payment','exact key · blocked fuzzy','99.4%','2,311,000 of 2,324,900','18'],
+          ['L2','Payment ↔ Transaction','transaction link','99.8%','2,319,600 of 2,324,900','6'],
+          ['L3','Transaction ↔ Settlement','many to one','99.8%','2,048,000 of 2,052,100','11'],
+          ['L4','Bank ↔ Settlement','bank settlement','100%','2,040,700 of 2,040,700','6']],
+  grids:[['Orders','95,690','31 days'],['Payments','96,220','4 sources'],['Transactions','62,410','1 acquirer'],
+         ['Settlements','12','3 aggregators'],['Bank entries','892','2 accounts'],['Matches','95,441','5 passes'],
+         ['Exceptions','8','open'],['Imports','5','batches']],
+  exc:[
+   {id:'e1',cat:'unmatched_receipt',ref:'RAK-4471-0729-A',amt:3180,st:'open',d:'a customer paid us directly and no order claims it'},
+   {id:'e2',cat:'unmatched_receipt',ref:'RAK-4471-0729-B',amt:3040,st:'open',d:'a customer paid us directly and no order claims it'},
+   {id:'e3',cat:'missing_payment',ref:'ORD-88421',amt:186,st:'open',d:'order present with no settled payment'},
+   {id:'e4',cat:'missing_payment',ref:'ORD-88907',amt:242,st:'open',d:'order present with no settled payment'},
+   {id:'e5',cat:'unlinked_payment',ref:'PAY-32004',amt:1240,st:'open',d:'payment settled with no order behind it'},
+   {id:'e6',cat:'authorized_not_captured',ref:'PAY-31284',amt:96,st:'acknowledged',d:'authorisation placed but never captured'},
+   {id:'e7',cat:'orphan_refund',ref:'PAY-31910',amt:148,st:'open',d:'refund event with no order in this run'},
+   {id:'e8',cat:'chargeback',ref:'PAY-30776',amt:412,st:'assigned',d:'chargeback raised against a settled order'}],
+  ar:{note:'Corporate catering and office accounts. Everything else is settled at the point of sale.',
+      rows:[['Current','78,200','54.3%'],['31 to 60 days','34,600','24.1%'],['61 to 90 days','19,400','13.5%'],
+            ['Over 90 days','11,700','8.1%']],total:['Trade receivables','143,900','100.0%'],
+      extra:'Two unapplied receipts totalling AED 6,220 sit against no invoice and appear above as unmatched_receipt.'},
+  close:[
+   {id:'k1',tag:'live',t:'Settlements in transit at 31 July',w:'AED 81,300 left the channels before period end and landed on 4 August. Recognised as a receivable at 31 July so revenue and cash agree.',
+    ev:[['Amount','AED 81,300'],['Received','4 Aug'],['Basis','Title passed at settlement']],
+    acts:['Recognise as receivable','Leave in August']},
+   {id:'k2',tag:'live',t:'Foreign exchange basis for USD settlements',w:'One aggregator settles in USD against AED sales. The rate basis changes the reported loss: transaction-date rate gives AED 4,900, month-average gives AED 3,600.',
+    ev:[['Transaction date','AED 4,900'],['Month average','AED 3,600'],['Policy','Transaction date']],
+    acts:['Use transaction-date rate','Use month-average rate']}]},
+ cedar:{
+  layers:[['L1','Encounter ↔ Invoice','exact key','99.7%','4,846 of 4,860 encounters','14'],
+          ['L2','Invoice ↔ Claim','blocked fuzzy','98.9%','3,914 claims raised','9'],
+          ['L3','Claim ↔ Remittance','many to one','82.4%','867,400 of 1,182,100','19'],
+          ['L4','Bank ↔ Remittance','bank settlement','100%','1,082,200 of 1,082,200','4']],
+  grids:[['Encounters','4,860','3 sites'],['Invoices','4,846','raised'],['Claims','3,914','submitted'],
+         ['Remittances','8','4 payers'],['Bank entries','486','1 account'],['Matches','4,702','4 passes'],
+         ['Exceptions','6','open'],['Imports','4','batches']],
+  exc:[
+   {id:'e1',cat:'missing_payment',ref:'CLM-Sentinel Health-JUL',amt:214800,st:'open',d:'claims billed with no remittance received'},
+   {id:'e2',cat:'unmatched_receipt',ref:'TQ-2026-0788',amt:9420,st:'open',d:'a payer credit that matches no submitted claim'},
+   {id:'e3',cat:'missing_payment',ref:'CLM-DMN-2214',amt:1860,st:'acknowledged',d:'claim submitted, no remittance line'},
+   {id:'e4',cat:'unlinked_payment',ref:'RMT-DMN-0712',amt:3240,st:'open',d:'remittance line with no claim behind it'},
+   {id:'e5',cat:'orphan_refund',ref:'REF-4471',amt:640,st:'open',d:'refund event with no encounter in this run'},
+   {id:'e6',cat:'authorized_not_captured',ref:'CRD-9921',amt:380,st:'resolved',d:'card authorisation never captured'}],
+  ar:{note:'Insurance receivables dominate. Self-pay settles at the desk and does not age.',
+      rows:[['Current','302,700','36.3%'],['31 to 60 days','374,800','45.0%'],['61 to 90 days','108,900','13.1%'],
+            ['Over 90 days','47,300','5.7%']],total:['Trade receivables','833,700','100.0%'],
+      extra:'Sentinel Health\'s 31 to 60 bucket is inflated by the missing July remittance. About AED 190,000 of it would normally have cleared.'},
+  close:[
+   {id:'k1',tag:'live',t:'VAT treatment on mixed supplies',w:'Medical procedures are exempt and aesthetic procedures are standard-rated. Nineteen encounters carry codes that could fall either side, and no stored rule covers them.',
+    ev:[['Encounters','19'],['Value','AED 34,200'],['Stored rule','None']],
+    acts:['Apply the medical treatment and store the rule','Apply standard rating','Ask the client to confirm each']},
+   {id:'k2',tag:'build',t:'Locum accrual basis',w:'Agency invoices arrive around the 10th. The accrual uses June rates, but the agency notified a 6% increase effective 1 July.',
+    ev:[['Accrual','AED 16,200'],['Rate basis','June'],['Notified increase','6%']],
+    acts:['Uplift the accrual by 6%','Leave and true up next month']}]},
+ rasheed:{
+  layers:[['L1','Invoice ↔ Receipt','exact key · blocked fuzzy','96.1%','6,574,000 of 6,842,000','23'],
+          ['L2','Receipt ↔ Bank','bank settlement','99.2%','6,521,000 of 6,574,000','9'],
+          ['L3','Bank ↔ Ledger','transaction link','98.4%','892 of 906 lines','14'],
+          ['L4','Stock ↔ Ledger','not built','—','SAR 74,800 variance','—']],
+  grids:[['Invoices','1,842','ZATCA feed'],['Receipts','1,204','matched'],['Stock movements','3,914','340 SKUs'],
+         ['Bank entries','892','2 accounts'],['Matches','1,712','3 passes'],['Exceptions','6','open'],
+         ['Imports','4','batches'],['Suppliers','—','not built']],
+  exc:[
+   {id:'e1',cat:'missing_payment',ref:'INV-2026-1188',amt:84200,st:'assigned',d:'invoice raised with no receipt against it'},
+   {id:'e2',cat:'unmatched_receipt',ref:'RB-2209-0714',amt:21400,st:'open',d:'a customer paid us directly and no invoice claims it'},
+   {id:'e3',cat:'unmatched_debit',ref:'RB-2209-0718',amt:24800,st:'open',d:'bank debit with no supplier invoice behind it'},
+   {id:'e4',cat:'unmatched_debit',ref:'RB-2209-0722',amt:12500,st:'open',d:'bank debit with no supplier invoice behind it'},
+   {id:'e5',cat:'unlinked_payment',ref:'RCP-0912',amt:18600,st:'open',d:'receipt with no invoice behind it'},
+   {id:'e6',cat:'orphan_refund',ref:'CN-0421',amt:6300,st:'acknowledged',d:'credit note with no invoice in this run'}],
+  ar:{note:'The receivables book is 2.0 months of revenue and heavily concentrated.',
+      rows:[['Current','6,284,000','45.2%'],['31 to 60 days','2,108,000','15.2%'],['61 to 90 days','892,000','6.4%'],
+            ['91 to 120 days','307,000','2.2%'],['Over 120 days','4,309,000','31.0%']],
+      total:['Trade receivables','13,900,000','100.0%'],
+      extra:'The over-120 bucket is a single counterparty at 127 days, carrying 9.0% provision against a 40% policy.'},
+  close:[
+   {id:'k1',tag:'build',t:'Goods in transit at period end',w:'Two shipments on FOB terms left the supplier port before 31 July but had not arrived. Under those terms title passed, so both the stock and the payable belong in July.',
+    ev:[['Shipments','2'],['Value','SAR 189,400'],['Terms','FOB'],['Departed','28 and 30 Jul']],
+    acts:['Record as goods in transit','Leave in August','Confirm the shipping terms first']},
+   {id:'k2',tag:'build',t:'Stock count variance',w:'The 31 July count is SAR 74,800 below the warehouse record, concentrated in two SKUs at Dammam, with no goods issue notes to explain it.',
+    ev:[['Variance','SAR 74,800'],['SKUs','2 of 340'],['Location','Dammam'],['Explained','None']],
+    acts:['Write off and flag for investigation','Recount before sign-off']},
+   {id:'k3',tag:'build',t:'Zero-rated exports without evidence',w:'Fourteen export invoices are zero-rated but only nine carry customs exit declarations. ZATCA requires evidence for the treatment.',
+    ev:[['Invoices','14'],['With evidence','9'],['Missing','5']],
+    acts:['Request the missing declarations','Standard-rate the five']},
+   {id:'k4',tag:'build',t:'Related-party balances',w:'Two balances with an entity sharing a director need separate disclosure and confirmation that the terms are arm\'s length.',
+    ev:[['Balances','2'],['Total','SAR 143,000'],['Disclosed','No']],
+    acts:['Disclose separately in the pack','Ask the client to confirm terms']}]}};
+
+const AP_FRAME={
+ title:'Nothing here yet, and that is deliberate',
+ lines:['Supplier invoices matched to payments and to the bank',
+        'Three-way match against goods received notes',
+        'Payables ageing and supplier statement reconciliation',
+        'Unmatched bank debits resolved to a supplier rather than held in suspense'],
+ note:'The engine has no supplier, vendor or bill concept today: the canonical entities are orders, payments, transactions, settlements and bank entries. Payables is deferred by decision and expected to arrive through a partner rather than be built here. Unmatched bank debits are already detected, as the exceptions above show; what is missing is the invoice to match them against.'};
+</script><script>
+/* Receivables and payables activity. AP is Roadmap in the engine: these pages show the
+   shape the module would take, not something the engine produces today. */
+const ACT={
+ dallah:{
+  ar:{unit:'Channel',pendingLabel:'Nimbus Now',pending:168900,platforms:5,txns:95690,total:2324900,
+   rows:[['Dine-in & counter',1142300,48320,'Synced','In-store POS · daily export'],
+         ['Orbit',486700,18940,'Synced','Portal payout files · weekly'],
+         ['Zephyr',312400,12180,'Synced','Portal payout files · weekly'],
+         ['Own app & pickup',214600,9410,'Partial','Gateway feed · 2 days missing'],
+         ['Nimbus Now',168900,6840,'Pending','July payout file not released']],
+   posting:[['05 Jul','Dine-in & counter',268400,4300,264100,'4000 · Sales','Posted'],
+            ['12 Jul','Orbit',118600,29650,88950,'4000 · Sales','Posted'],
+            ['19 Jul','Zephyr',79400,20250,59150,'4000 · Sales','Posted'],
+            ['26 Jul','Nimbus Now',41200,9890,31310,'4000 · Sales','Review'],
+            ['31 Jul','Own app & pickup',52800,1900,50900,'4000 · Sales','Draft']]},
+  ap:{bills:[['02 Jul','Propel Inbox','Email / WhatsApp','Emirates Catering Co.','INV-2026-0841',14200,710,'5110 · F&B supplies','Posted'],
+             ['04 Jul','Zoho Bills','Ledger sync','Al Futtaim Logistics','INV-AF-9901',3800,190,'5220 · Freight','Confirmed'],
+             ['07 Jul','Propel Inbox','Email / WhatsApp','Etisalat Business','ETB-072026',1450,72.5,'6010 · Telecoms','Posted'],
+             ['09 Jul','Supplier Portal','Portal download','DEWA','DEWA-0072026',9600,0,'6020 · Utilities','Confirmed'],
+             ['14 Jul','Propel Inbox','Email / WhatsApp','National Paper & Pack','NPP-40221',2100,105,'5130 · Packaging','Pending'],
+             ['18 Jul','Zoho Bills','Ledger sync','Dubai Municipality','DM-H-20758',550,0,'7010 · Licences & fees','Confirmed'],
+             ['23 Jul','Supplier Portal','Portal download','Fresh Farms UAE','FF-2026-0712',6800,340,'5110 · F&B supplies','Posted'],
+             ['29 Jul','Propel Inbox','Email / WhatsApp','Genie Cleaning Services','GCS-19983',1800,90,'5300 · Cleaning','Progress']],
+      billpay:[['08 Jul','Bank transfer','Emirates Catering Co.','PAY-2026-0331',14200,'Gulf Union Bank ···4471','Paid'],
+               ['11 Jul','Bank transfer','Al Futtaim Logistics','PAY-2026-0332',3800,'Gulf Union Bank ···4471','Paid'],
+               ['15 Jul','Direct debit','DEWA','DD-072026',9600,'Emirates NBD ···8802','Paid'],
+               ['21 Jul','Bank transfer','Fresh Farms UAE','PAY-2026-0338',6800,'Gulf Union Bank ···4471','Paid'],
+               ['30 Jul','Bank transfer','National Paper & Pack','PAY-2026-0344',2100,'Gulf Union Bank ···4471','Scheduled']],
+      txns:[['03 Jul','Card ···2214','Orbit Mart','Al Quoz',420,21,'5110 · F&B supplies','Matched'],
+            ['09 Jul','Card ···2214','Carrefour Business','Business Bay',1180,59,'5110 · F&B supplies','Matched'],
+            ['16 Jul','Card ···6690','Union Coop','JLT',760,38,'5110 · F&B supplies','Unmatched'],
+            ['22 Jul','Cash vault','Petty cash float','DIFC',900,0,'6090 · Sundry','Unmatched'],
+            ['28 Jul','Card ···6690','ADNOC','Sharjah',310,15.5,'6040 · Vehicle','Matched']],
+      bank:[['02 Jul','Gulf Union Bank ···4471','Aggregator settlement Orbit','credit',118600,'Matched'],
+            ['09 Jul','Gulf Union Bank ···4471','Supplier payment Emirates Catering','debit',14200,'Matched'],
+            ['15 Jul','Emirates NBD ···8802','DEWA direct debit','debit',9600,'Matched'],
+            ['23 Jul','Gulf Union Bank ···4471','Card acquirer settlement','credit',268400,'Matched'],
+            ['29 Jul','Gulf Union Bank ···4471','Unidentified credit','credit',3180,'Unmatched'],
+            ['29 Jul','Gulf Union Bank ···4471','Unidentified credit','credit',3040,'Unmatched']],
+      payroll:[['Jul 2026','Salaries · 84 staff',412600,'WPS-0726-8841',398200,'Paid'],
+               ['Jul 2026','End-of-service accrual',12700,'accrual','—','Posted'],
+               ['Jul 2026','Overtime & tips',31900,'WPS-0726-8842',31900,'Paid'],
+               ['Aug 2026','Salaries · 86 staff',419800,'not yet run','—','Pending']]},
+  rar:{items:41,auto:33,manual:5,un:3,
+   layers:[['Order ↔ Payment','var(--s1)',95690,95210,320,160],
+           ['Payment ↔ Settlement','var(--s3)',96220,95940,180,100],
+           ['Settlement ↔ Bank','var(--s4)',12,12,0,0]]},
+  rap:{items:22,auto:9,manual:2,un:11,
+   layers:[['Bill ↔ Bill payments','var(--s1)',8,5,1,2],
+           ['Transactions → Expenses','var(--s5)',5,2,1,2],
+           ['Payrun ↔ Bank transfer','var(--s3)',4,2,0,2],
+           ['Bank ↔ Ledger','var(--s4)',5,0,0,5]]}},
+
+ cedar:{
+  ar:{unit:'Payer',pendingLabel:'Sentinel Health',pending:214800,platforms:5,txns:4860,total:1445100,
+   rows:[['Daman',486200,1624,'Synced','Remittance file · monthly'],
+         ['Thiqa',312700,1043,'Partial','2 of 3 files received'],
+         ['Self-pay',263000,1486,'Synced','Practice system · daily'],
+         ['Sentinel Health',214800,512,'Pending','July remittance not received'],
+         ['Other insurers',168400,195,'Synced','Remittance files · monthly']],
+   posting:[['08 Jul','Daman',162100,10500,151600,'4000 · Patient revenue','Posted'],
+            ['15 Jul','Thiqa',104200,4700,99500,'4000 · Patient revenue','Posted'],
+            ['22 Jul','Self-pay',87600,0,87600,'4000 · Patient revenue','Posted'],
+            ['29 Jul','Other insurers',56100,4200,51900,'4000 · Patient revenue','Review'],
+            ['31 Jul','Sentinel Health (estimated)',214800,0,214800,'4000 · Patient revenue','Draft']]},
+  ap:{bills:[['03 Jul','Propel Inbox','Email / WhatsApp','Gulf Medical Supplies','GMS-2026-1180',86400,4320,'5150 · Consumables','Posted'],
+             ['06 Jul','Zoho Bills','Ledger sync','Al Borg Laboratories','ABL-77120',42300,2115,'5160 · Lab services','Confirmed'],
+             ['11 Jul','Propel Inbox','Email / WhatsApp','MedTech Servicing','MTS-0912',18700,935,'5400 · Equipment maintenance','Posted'],
+             ['17 Jul','Supplier Portal','Portal download','DEWA','DEWA-CL-0072026',14200,0,'6020 · Utilities','Confirmed'],
+             ['21 Jul','Propel Inbox','Email / WhatsApp','Locum Agency Gulf','LAG-2026-0644',68400,3420,'5210 · Locum fees','Pending'],
+             ['26 Jul','Zoho Bills','Ledger sync','DHA Licensing','DHA-88201',9800,0,'7010 · Licences & fees','Confirmed'],
+             ['30 Jul','Propel Inbox','Email / WhatsApp','Clean Medic Services','CMS-3390',7600,380,'5300 · Cleaning','Progress']],
+      billpay:[['10 Jul','Bank transfer','Gulf Medical Supplies','PAY-CL-0221',86400,'Mashreq ···3310','Paid'],
+               ['14 Jul','Bank transfer','Al Borg Laboratories','PAY-CL-0224',42300,'Mashreq ···3310','Paid'],
+               ['20 Jul','Direct debit','DEWA','DD-CL-072026',14200,'Mashreq ···3310','Paid'],
+               ['31 Jul','Bank transfer','Locum Agency Gulf','PAY-CL-0231',68400,'Mashreq ···3310','Held']],
+      txns:[['05 Jul','Card ···9921','Pharmacy top-up','Jumeirah',3400,170,'5150 · Consumables','Matched'],
+            ['13 Jul','Card ···9921','Medical gases','Al Barsha',2100,105,'5150 · Consumables','Matched'],
+            ['19 Jul','Card ···4407','Courier · specimens','Motor City',860,43,'5160 · Lab services','Unmatched'],
+            ['27 Jul','Card ···4407','Office supplies','Jumeirah',540,27,'6090 · Sundry','Matched']],
+      bank:[['08 Jul','Mashreq ···3310','Daman remittance','credit',402700,'Matched'],
+            ['16 Jul','Mashreq ···3310','Thiqa remittance','credit',281900,'Matched'],
+            ['20 Jul','Mashreq ···3310','DEWA direct debit','debit',14200,'Matched'],
+            ['24 Jul','Mashreq ···3310','Thiqa credit, no claim batch','credit',9420,'Unmatched'],
+            ['31 Jul','Mashreq ···3310','Payroll transfer','debit',394800,'Matched']],
+      payroll:[['Jul 2026','Clinical salaries · 46 staff',394800,'WPS-0726-2210',394800,'Paid'],
+               ['Jul 2026','Locum accrual',16200,'accrual','—','Review'],
+               ['Jul 2026','End-of-service accrual',12700,'accrual','—','Posted'],
+               ['Aug 2026','Clinical salaries · 46 staff',398600,'not yet run','—','Pending']]},
+  rar:{items:33,auto:19,manual:5,un:9,
+   layers:[['Encounter ↔ Invoice','var(--s1)',4860,4846,8,6],
+           ['Invoice ↔ Claim','var(--s3)',3914,3872,25,17],
+           ['Claim ↔ Remittance','var(--s4)',3914,3225,142,547],
+           ['Bank ↔ Remittance','var(--s2)',8,8,0,0]]},
+  rap:{items:16,auto:7,manual:2,un:7,
+   layers:[['Bill ↔ Bill payments','var(--s1)',7,4,1,2],
+           ['Transactions → Expenses','var(--s5)',4,2,1,1],
+           ['Payrun ↔ Bank transfer','var(--s3)',4,1,0,3],
+           ['Bank ↔ Ledger','var(--s4)',5,0,0,5]]}},
+
+ rasheed:{
+  ar:{unit:'Customer',pendingLabel:'Sahel Distributors',pending:418000,platforms:7,txns:1842,total:6842000,
+   rows:[['National Retail Group',1972000,412,'Synced','ZATCA e-invoicing feed'],
+         ['Al Hadaya Wholesale',1341000,298,'Synced','ZATCA e-invoicing feed'],
+         ['Riyadh HORECA supply',986000,386,'Synced','ZATCA e-invoicing feed'],
+         ['Eastern Province chains',874000,271,'Partial','3 invoices awaiting credit note'],
+         ['Gulf Catering Co.',642000,198,'Synced','ZATCA e-invoicing feed'],
+         ['Sahel Distributors',418000,92,'Pending','Disputed pricing, on hold'],
+         ['All other customers',609000,185,'Synced','ZATCA e-invoicing feed']],
+   posting:[['07 Jul','National Retail Group',492000,0,492000,'4000 · Sales','Posted'],
+            ['14 Jul','Al Hadaya Wholesale',336000,0,336000,'4000 · Sales','Posted'],
+            ['21 Jul','Riyadh HORECA supply',248000,0,248000,'4000 · Sales','Posted'],
+            ['28 Jul','Eastern Province chains',219000,0,219000,'4000 · Sales','Review'],
+            ['31 Jul','Sahel Distributors',104000,0,104000,'4000 · Sales','Draft']]},
+  ap:{bills:[['02 Jul','Supplier Portal','Portal download','Almarai Foods','ALM-2026-3341',1284000,192600,'5100 · Goods for resale','Posted'],
+             ['05 Jul','Propel Inbox','Email / WhatsApp','Gulf Freight Lines','GFL-88210',186400,27960,'5220 · Freight','Confirmed'],
+             ['09 Jul','Supplier Portal','Portal download','Saudi Customs','SC-0072026',94200,0,'5230 · Duty & clearing','Posted'],
+             ['13 Jul','Propel Inbox','Email / WhatsApp','Dammam Warehousing','DW-2026-0712',142600,21390,'5240 · Storage','Pending'],
+             ['19 Jul','Zoho Bills','Ledger sync','Saudi Electricity Co.','SEC-072026',38400,5760,'6020 · Utilities','Confirmed'],
+             ['24 Jul','Supplier Portal','Portal download','Nadec Dairy','NDC-99120',412800,61920,'5100 · Goods for resale','Posted'],
+             ['29 Jul','Propel Inbox','Email / WhatsApp','Riyadh Pallet Co.','RPC-2214',26800,4020,'5130 · Packaging','Progress']],
+      billpay:[['12 Jul','Bank transfer','Almarai Foods','PAY-RT-1180',1284000,'Riyad Bank ···2209','Paid'],
+               ['16 Jul','Bank transfer','Gulf Freight Lines','PAY-RT-1184',186400,'Riyad Bank ···2209','Paid'],
+               ['20 Jul','Letter of credit','Nadec Dairy','LC-2026-0088',412800,'Riyad Bank ···7741','Scheduled'],
+               ['31 Jul','Bank transfer','Dammam Warehousing','PAY-RT-1191',142600,'Riyad Bank ···2209','Held']],
+      txns:[['06 Jul','Card ···3312','Fuel · fleet','Riyadh',18400,2760,'6040 · Vehicle','Matched'],
+            ['15 Jul','Card ···3312','Warehouse consumables','Dammam',9200,1380,'5240 · Storage','Unmatched'],
+            ['22 Jul','Card ···8890','Customs broker fee','Jeddah',12600,1890,'5230 · Duty & clearing','Matched'],
+            ['30 Jul','Card ···8890','Office & IT','Riyadh',4300,645,'6090 · Sundry','Unmatched']],
+      bank:[['12 Jul','Riyad Bank ···2209','Supplier payment Almarai','debit',1284000,'Matched'],
+            ['14 Jul','Riyad Bank ···2209','Customer receipt National Retail','credit',492000,'Matched'],
+            ['18 Jul','Riyad Bank ···2209','Debit, no supplier invoice','debit',24800,'Unmatched'],
+            ['22 Jul','Riyad Bank ···2209','Debit, no supplier invoice','debit',12500,'Unmatched'],
+            ['26 Jul','Riyad Bank ···2209','Customer receipt, unidentified','credit',21400,'Unmatched'],
+            ['31 Jul','Riyad Bank ···7741','FX settlement USD','debit',476250,'Matched']],
+      payroll:[['Jul 2026','Salaries · 118 staff',486000,'WPS-SA-0726',486000,'Paid'],
+               ['Jul 2026','End-of-service accrual',24800,'accrual','—','Posted'],
+               ['Jul 2026','Driver overtime',38200,'WPS-SA-0727',38200,'Paid'],
+               ['Aug 2026','Salaries · 120 staff',491400,'not yet run','—','Pending']]},
+  rar:{items:47,auto:24,manual:8,un:15,
+   layers:[['Invoice ↔ Receipt','var(--s1)',1842,1771,42,29],
+           ['Receipt ↔ Bank','var(--s3)',1204,1194,6,4],
+           ['Bank ↔ Ledger','var(--s4)',906,892,0,14]]},
+  rap:{items:19,auto:6,manual:1,un:12,
+   layers:[['Bill ↔ Bill payments','var(--s1)',7,4,1,2],
+           ['Transactions → Expenses','var(--s5)',4,1,0,3],
+           ['Payrun ↔ Bank transfer','var(--s3)',4,1,0,3],
+           ['Bank ↔ Ledger','var(--s4)',6,0,0,6]]}}
+};
+</script>
+<script>
+const D=(k,txt)=>`<button class="d" data-drill="${k}">${txt}</button>`;
+const S=['var(--s1)','var(--s2)','var(--s3)','var(--s4)','var(--s5)'];
+
+const PACKS={
+ fnb:{
+  cur:'AED',title:'Monthly Management Pack',
+  sub:'Six outlets · Dubai and Sharjah · Specialty coffee and all-day dining',
+  kpis:[['Net revenue','AED','2,324,900','+5.8% MoM','up','fnb.rev'],
+        ['EBITDA','AED','215,300','(10.1)% vs budget','down','fnb.ebitda'],
+        ['Prime cost','','57.9%','0.9pp over target','down',''],
+        ['Cash at bank','AED','1,284,600','(98,700) in month','down','']],
+  narr:[
+   '<b>Revenue beat plan, margin did not.</b> July revenue of AED 2,324,900 came in 2.0% ahead of budget and 5.8% ahead of June, carried by DIFC trading a full month and a strong delivery July. EBITDA of AED 215,300 still landed AED 24,100 short of plan, because prime cost ran 0.9 points above target.',
+   '<b>Two thirds of the overrun is DIFC.</b> The new outlet is at 64.3% prime against a 57.0% group target, which is normal in a ramp. Sharjah Al Majaz is the one to watch instead: food cost has sat near 32% for four consecutive months with no ramp to explain it.',
+   '<b>Delivery is growing faster than it is earning.</b> Aggregators were 41.6% of revenue and 90.3% of all commission and delivery fees. Every extra AED 100 of aggregator revenue brings in AED 75 of contribution against AED 98 through the counter.'],
+  sections:{
+   pl:{code:'02',title:'Profit and loss',note:'AED · net of VAT',body:c=>`
+    <div class="tscroll"><table><thead><tr><th>Line</th><th>July</th><th>% rev</th><th>June</th>
+     <th>${c==='lastyear'?'Jul 2025':'Budget'}</th><th>Variance</th></tr></thead><tbody>
+     <tr class="sub"><th>Net revenue</th><td>${D('fnb.rev','2,324,900')}</td><td>100.0%</td><td>2,198,400</td>
+       <td>${c==='lastyear'?'1,864,300':'2,280,000'}</td><td class="pos">${c==='lastyear'?'460,600':'44,900'}</td></tr>
+     <tr class="ind"><th>Cost of sales</th><td class="neg">(727,700)</td><td>31.3%</td><td class="neg">(693,600)</td>
+       <td class="neg">${c==='lastyear'?'(586,800)':'(706,800)'}</td><td class="neg">${c==='lastyear'?'(140,900)':'(20,900)'}</td></tr>
+     <tr class="sub"><th>Gross profit</th><td>1,597,200</td><td>68.7%</td><td>1,504,800</td>
+       <td>${c==='lastyear'?'1,277,500':'1,573,200'}</td><td class="pos">${c==='lastyear'?'319,700':'24,000'}</td></tr>
+     <tr class="ind"><th>Labour and benefits</th><td class="neg">(617,800)</td><td>26.6%</td><td class="neg">(594,700)</td>
+       <td class="neg">${c==='lastyear'?'(492,100)':'(592,800)'}</td><td class="neg">${c==='lastyear'?'(125,700)':'(25,000)'}</td></tr>
+     <tr class="sub"><th>Prime cost</th><td class="neg">(1,345,500)</td><td>57.9%</td><td class="neg">(1,288,300)</td>
+       <td class="neg">${c==='lastyear'?'(1,078,900)':'(1,299,600)'}</td><td class="neg">${c==='lastyear'?'(266,600)':'(45,900)'}</td></tr>
+     <tr class="gap"><td colspan="6"></td></tr>
+     <tr class="ind"><th>Commission and delivery fees</th><td class="neg">${D('fnb.comm','(241,900)')}</td><td>10.4%</td>
+       <td class="neg">(219,400)</td><td class="neg">${c==='lastyear'?'(163,200)':'(228,000)'}</td><td class="neg">${c==='lastyear'?'(78,700)':'(13,900)'}</td></tr>
+     <tr class="ind"><th>Rent and occupancy</th><td class="neg">(289,000)</td><td>12.4%</td><td class="neg">(289,000)</td>
+       <td class="neg">${c==='lastyear'?'(241,000)':'(289,000)'}</td><td class="${c==='lastyear'?'neg':'dim'}">${c==='lastyear'?'(48,000)':'nil'}</td></tr>
+     <tr class="ind"><th>Utilities</th><td class="neg">(62,400)</td><td>2.7%</td><td class="neg">(57,900)</td>
+       <td class="neg">${c==='lastyear'?'(49,800)':'(58,000)'}</td><td class="neg">${c==='lastyear'?'(12,600)':'(4,400)'}</td></tr>
+     <tr class="ind"><th>Marketing</th><td class="neg">(48,900)</td><td>2.1%</td><td class="neg">(44,200)</td>
+       <td class="neg">${c==='lastyear'?'(38,600)':'(52,000)'}</td><td class="${c==='lastyear'?'neg':'pos'}">${c==='lastyear'?'(10,300)':'3,100'}</td></tr>
+     <tr class="ind"><th>Card processing (MDR)</th><td class="neg">${D('fnb.mdr','(26,000)')}</td><td>1.1%</td><td class="neg">(25,100)</td>
+       <td class="neg">${c==='lastyear'?'(22,400)':'(25,800)'}</td><td class="neg">${c==='lastyear'?'(3,600)':'(200)'}</td></tr>
+     <tr class="ind"><th>Repairs and maintenance</th><td class="neg">(21,600)</td><td>0.9%</td><td class="neg">(18,400)</td>
+       <td class="neg">${c==='lastyear'?'(16,900)':'(20,000)'}</td><td class="neg">${c==='lastyear'?'(4,700)':'(1,600)'}</td></tr>
+     <tr class="ind"><th>Foreign exchange on settlement</th><td class="neg">(4,900)</td><td>0.2%</td><td class="neg">(4,100)</td>
+       <td class="neg">${c==='lastyear'?'(3,200)':'nil'}</td><td class="neg">${c==='lastyear'?'(1,700)':'(4,900)'}</td></tr>
+     <tr class="ind"><th>Administration and other</th><td class="neg">(69,400)</td><td>3.0%</td><td class="neg">(59,200)</td>
+       <td class="neg">${c==='lastyear'?'(58,100)':'(70,000)'}</td><td class="${c==='lastyear'?'neg':'pos'}">${c==='lastyear'?'(11,300)':'600'}</td></tr>
+     <tr class="gap"><td colspan="6"></td></tr>
+     <tr class="sub"><th>EBITDA</th><td>${D('fnb.ebitda','215,300')}</td><td>9.3%</td><td>192,800</td>
+       <td>${c==='lastyear'?'151,200':'239,400'}</td><td class="${c==='lastyear'?'pos':'neg'}">${c==='lastyear'?'64,100':'(24,100)'}</td></tr>
+     <tr class="ind"><th>Depreciation</th><td class="neg">(96,200)</td><td>4.1%</td><td class="neg">(93,800)</td>
+       <td class="neg">${c==='lastyear'?'(81,400)':'(96,000)'}</td><td class="neg">${c==='lastyear'?'(14,800)':'(200)'}</td></tr>
+     <tr class="tot"><th>Operating profit</th><td>119,100</td><td>5.1%</td><td>99,000</td>
+       <td>${c==='lastyear'?'69,800':'143,400'}</td><td class="${c==='lastyear'?'pos':'neg'}">${c==='lastyear'?'49,300':'(24,300)'}</td></tr>
+     </tbody></table></div>
+    <p class="fnote">Negative figures in parentheses. Variance compares July actual with the ${c==='lastyear'?'same month last year':'July budget'}; a figure in parentheses is adverse.</p>`},
+   bridge:{code:'03',title:'Sales to cash in the bank',note:'Why AED 2.32m became AED 2.04m',body:()=>`
+    <div class="tscroll"><table><thead><tr><th>Step</th><th>Amount</th><th>% rev</th><th>Relative size</th><th>Running</th></tr></thead><tbody>
+     <tr class="sub"><th>Net revenue recorded</th><td>${D('fnb.rev','2,324,900')}</td><td>100.0%</td><td class="barc"></td><td>2,324,900</td></tr>
+     <tr><th>Commission and delivery fees</th><td class="neg">${D('fnb.comm','(241,900)')}</td><td>10.4%</td>
+       <td class="barc"><div class="bart"><div class="barf" style="width:100%"></div></div></td><td>2,083,000</td></tr>
+     <tr><th>Card processing (MDR)</th><td class="neg">${D('fnb.mdr','(26,000)')}</td><td>1.1%</td>
+       <td class="barc"><div class="bart"><div class="barf" style="width:10.7%"></div></div></td><td>2,057,000</td></tr>
+     <tr><th>Foreign exchange on settlement</th><td class="neg">(4,900)</td><td>0.2%</td>
+       <td class="barc"><div class="bart"><div class="barf" style="width:2%"></div></div></td><td>2,052,100</td></tr>
+     <tr class="sub"><th>Net settled by channels</th><td>2,052,100</td><td>88.3%</td><td class="barc"></td><td>2,052,100</td></tr>
+     <tr><th>Rolling reserve withheld</th><td class="neg">${D('fnb.reserve','(24,700)')}</td><td>1.1%</td>
+       <td class="barc"><div class="bart"><div class="barf" style="width:10.2%"></div></div></td><td>2,027,400</td></tr>
+     <tr><th>Settlements in transit at 31 July</th><td class="neg">(81,300)</td><td>3.5%</td>
+       <td class="barc"><div class="bart"><div class="barf" style="width:33.6%"></div></div></td><td>1,946,100</td></tr>
+     <tr><th>Reserve released from earlier periods</th><td class="pos">18,200</td><td>0.8%</td>
+       <td class="barc"><div class="bart"><div class="barf add" style="width:7.5%"></div></div></td><td>1,964,300</td></tr>
+     <tr><th>June settlements received in July</th><td class="pos">76,400</td><td>3.3%</td>
+       <td class="barc"><div class="bart"><div class="barf add" style="width:31.6%"></div></div></td><td>2,040,700</td></tr>
+     <tr class="tot"><th>Credited to bank in July</th><td>2,040,700</td><td>87.8%</td><td class="barc"></td><td>2,040,700</td></tr>
+    </tbody></table></div>
+    <p class="fnote">Bars are scaled against the largest movement so small items stay visible. The bridge agrees to three bank accounts with no unexplained difference; two lines totalling AED 6,220 sit in suspense.</p>`},
+   channels:{code:'04',title:'Channel mix and what each one costs',note:'Share of net revenue',body:()=>`
+    <div class="stack" role="img" aria-label="Channel share: dine-in 49.1%, Orbit 20.9%, Zephyr 13.4%, own app 9.3%, Nimbus 7.3%">
+     ${[['49.1',0],['20.9',1],['13.4',2],['9.3',3],['7.3',4]].map(([w,i])=>
+      `<div class="stseg" style="width:${w}%;background:${S[i]}"><span>${w}%</span></div>`).join('')}</div>
+    <div class="leg">${[['Dine-in and counter',0],['Orbit',1],['Zephyr',2],['Own app and pickup',3],['Nimbus Now',4]]
+      .map(([l,i])=>`<div class="leg-i"><span class="sw" style="background:${S[i]}"></span>${l}</div>`).join('')}</div>
+    <div class="tscroll"><table><thead><tr><th>Channel</th><th>Net revenue</th><th>Share</th>
+      <th>Fees</th><th>Take rate</th><th>Contribution</th><th>Keeps</th></tr></thead><tbody>
+     <tr><th>Dine-in and counter</th><td>1,142,300</td><td>49.1%</td><td class="neg">(18,300)</td><td>1.6%</td><td>1,124,000</td><td>98.4%</td></tr>
+     <tr><th>Orbit</th><td>486,700</td><td>20.9%</td><td class="neg">${D('fnb.orbit','(121,700)')}</td><td>25.0%</td><td>365,000</td><td>75.0%</td></tr>
+     <tr><th>Zephyr</th><td>312,400</td><td>13.4%</td><td class="neg">${D('fnb.zephyr','(79,700)')}</td><td class="neg">25.5%</td><td>232,700</td><td>74.5%</td></tr>
+     <tr><th>Own app and pickup</th><td>214,600</td><td>9.3%</td><td class="neg">(7,700)</td><td>3.6%</td><td>206,900</td><td>96.4%</td></tr>
+     <tr><th>Nimbus Now</th><td>168,900</td><td>7.3%</td><td class="neg">(40,500)</td><td>24.0%</td><td>128,400</td><td>76.0%</td></tr>
+     <tr class="tot"><th>Total</th><td>2,324,900</td><td>100.0%</td><td class="neg">(267,900)</td><td>11.5%</td><td>2,057,000</td><td>88.5%</td></tr>
+    </tbody></table></div>
+    <p class="fnote">Take rate is every commission, delivery and processing fee charged by that channel as a percentage of revenue booked through it. Zephyr's 25.5% is above the 24.0% in the signed contract.</p>`},
+   outlets:{code:'05',title:'Outlet by outlet',note:'Six trading locations',body:()=>`
+    <div class="tscroll"><table><thead><tr><th>Outlet</th><th>Revenue</th><th>MoM</th><th>Txns</th>
+      <th>Avg ticket</th><th>Food</th><th>Labour</th><th>Prime</th><th>EBITDA</th><th>Margin</th></tr></thead><tbody>
+     ${[['JLT','512,400','+6.2%','21,340','24.00','30.2%','24.8%','55.0%','71,700','14.0%',93,''],
+        ['Dubai Marina','468,900','+4.1%','19,120','24.52','30.8%','25.4%','56.2%','60,900','13.0%',87,''],
+        ['Al Quoz (roastery)','401,200','+9.8%','13,860','28.95','32.6%','27.1%','59.7%','24,000','6.0%',40,'warn'],
+        ['Business Bay','386,700','+3.4%','16,940','22.83','30.4%','25.9%','56.3%','44,500','11.5%',77,''],
+        ['Sharjah Al Majaz','312,800','(2.1)%','15,020','20.83','31.9%','27.8%','59.7%','9,200','2.9%',19,'bad'],
+        ['DIFC','+18.6%','','9,410','25.81','33.1%','31.2%','64.3%','5,000','2.1%',14,'bad']]
+      .map(r=>{const isD=r[0]==='DIFC';
+       return `<tr><th>${r[0]}${isD?' <span class="dim mono">opened 12 May</span>':''}</th>
+        <td>${isD?'242,900':r[1]}</td><td class="${(isD?'+18.6%':r[2]).startsWith('(')?'neg':'pos'}">${isD?'+18.6%':r[2]}</td>
+        <td>${r[3]}</td><td>${r[4]}</td><td class="${parseFloat(r[5])>31?'neg':''}">${r[5]}</td>
+        <td class="${parseFloat(r[6])>27?'neg':''}">${r[6]}</td><td class="${parseFloat(r[7])>59?'neg':''}">${r[7]}</td>
+        <td>${r[8]}</td><td><div class="meter"><div class="mtrack"><div class="mfill ${r[11]}" style="width:${r[10]}%"></div></div>${r[9]}</div></td></tr>`}).join('')}
+     <tr class="tot"><th>Group</th><td>2,324,900</td><td class="pos">+5.8%</td><td>95,690</td><td>24.30</td>
+       <td>31.3%</td><td>26.6%</td><td>57.9%</td><td>215,300</td>
+       <td><div class="meter"><div class="mtrack"><div class="mfill" style="width:62%"></div></div>9.3%</div></td></tr>
+    </tbody></table></div>
+    <p class="fnote">Meters are scaled against a 15.0% EBITDA margin target. Amber marks an outlet below 8.0%, red below 5.0%. Outlet EBITDA is before group overhead and depreciation.</p>`},
+   wc:{code:'06',title:'Working capital',note:'At 31 July 2026',body:()=>`
+    <div class="tscroll"><table><thead><tr><th>Item</th><th>Balance</th><th>Expected</th><th>Note</th></tr></thead><tbody>
+     <tr><th>Cash at bank</th><td>1,284,600</td><td class="dim">—</td><td class="dim">Three accounts, all reconciled</td></tr>
+     <tr><th>Settlements in transit</th><td>81,300</td><td>By 4 Aug</td><td class="dim">Received in full, agreed</td></tr>
+     <tr><th>Rolling reserve held by Nimbus</th><td>${D('fnb.reserve','62,400')}</td><td>Rolling, 90 days</td><td class="dim">Reclassified this month</td></tr>
+     <tr><th>Trade receivables</th><td>143,900</td><td class="dim">—</td><td class="dim">AED 11,700 over 90 days</td></tr>
+     <tr><th>Trade payables</th><td class="neg">(612,300)</td><td class="dim">—</td><td class="dim">AED 48,600 at 61 to 90 days</td></tr>
+     <tr class="tot"><th>Net working capital position</th><td>959,900</td><td></td><td></td></tr>
+    </tbody></table></div>
+    <p class="fnote">The rolling reserve was previously written off to expense by the outgoing bookkeeper. It is a receivable and has been reclassified, with a prior-period effect of AED 38,900.</p>`},
+   cashflow:{code:'07',title:'Cash flow',note:'Condensed',body:()=>`
+    <div class="tscroll"><table><thead><tr><th>Line</th><th>July</th><th>June</th></tr></thead><tbody>
+     <tr><th>EBITDA</th><td>${D('fnb.ebitda','215,300')}</td><td>192,800</td></tr>
+     <tr><th>Movement in working capital</th><td class="neg">(68,400)</td><td class="pos">14,200</td></tr>
+     <tr class="sub"><th>Cash from operations</th><td>146,900</td><td>207,000</td></tr>
+     <tr><th>Capital expenditure</th><td class="neg">(112,600)</td><td class="neg">(41,300)</td></tr>
+     <tr><th>Lease payments</th><td class="neg">(98,300)</td><td class="neg">(98,300)</td></tr>
+     <tr><th>Interest and loan repayment</th><td class="neg">(34,700)</td><td class="neg">(34,700)</td></tr>
+     <tr class="sub"><th>Net movement</th><td class="neg">(98,700)</td><td class="pos">32,700</td></tr>
+     <tr><th>Opening cash</th><td>1,383,300</td><td>1,350,600</td></tr>
+     <tr class="tot"><th>Closing cash</th><td>1,284,600</td><td>1,383,300</td></tr>
+    </tbody></table></div>
+    <p class="fnote">July capital expenditure is the DIFC snagging works and the second roastery grinder, both approved in the May board note.</p>`}
+  },
+  order:['pl','bridge','channels','outlets','wc']
+ }
+};
+</script><script>
+PACKS.clinic={
+ cur:'AED',title:'Monthly Management Pack',
+ sub:'Three sites · Dubai · General practice, dental and aesthetics',
+ kpis:[['Gross billed','AED','1,445,100','+4.2% MoM','up','cl.billed'],
+       ['Net revenue','AED','1,386,800','+3.1% MoM','up',''],
+       ['EBITDA','AED','270,600','19.5% margin','up','cl.ebitda'],
+       ['Denial rate','','4.9%','1.1pp worse','down','cl.denial']],
+ narr:[
+  '<b>Volume held, collection did not.</b> Gross billing of AED 1,445,100 was 4.2% ahead of June across 4,860 encounters. Denials and write-offs of AED 58,300 took the denial rate to 4.9% of insured revenue, against 3.8% in June.',
+  '<b>One procedure code explains most of it.</b> Code 99213 denials jumped to 22.4% against a 7.1% trailing average, starting on 3 July, which is the date the new coding template went live at Al Barsha. AED 38,600 is at risk and resubmittable.',
+  '<b>The Sentinel Health July remittance has still not arrived.</b> AED 214,800 of billed revenue cannot be matched to cash, which pushes the 60-day receivable bucket up artificially. Two chases have gone out; we have estimated and will true up next month.',
+  '<b>Self-pay slipped below the covenant floor.</b> Self-pay was 18.2% of revenue against the 25.0% floor in the bank facility, for a second consecutive month. That triggers a notification obligation, which we have flagged for your decision.'],
+ sections:{
+  pl:{code:'02',title:'Profit and loss',note:'AED · net of VAT',body:c=>`
+   <div class="tscroll"><table><thead><tr><th>Line</th><th>July</th><th>% rev</th><th>June</th>
+    <th>${c==='lastyear'?'Jul 2025':'Budget'}</th><th>Variance</th></tr></thead><tbody>
+    <tr class="sub"><th>Gross billed</th><td>${D('cl.billed','1,445,100')}</td><td>104.2%</td><td>1,386,900</td>
+      <td>${c==='lastyear'?'1,182,400':'1,420,000'}</td><td class="pos">${c==='lastyear'?'262,700':'25,100'}</td></tr>
+    <tr class="ind"><th>Denials and write-offs</th><td class="neg">${D('cl.denial','(58,300)')}</td><td>4.2%</td>
+      <td class="neg">(41,800)</td><td class="neg">${c==='lastyear'?'(38,600)':'(42,600)'}</td><td class="neg">${c==='lastyear'?'(19,700)':'(15,700)'}</td></tr>
+    <tr class="sub"><th>Net revenue</th><td>1,386,800</td><td>100.0%</td><td>1,345,100</td>
+      <td>${c==='lastyear'?'1,143,800':'1,377,400'}</td><td class="pos">${c==='lastyear'?'243,000':'9,400'}</td></tr>
+    <tr class="gap"><td colspan="6"></td></tr>
+    <tr class="ind"><th>Clinical salaries</th><td class="neg">(512,400)</td><td>36.9%</td><td class="neg">(498,600)</td>
+      <td class="neg">${c==='lastyear'?'(432,900)':'(509,000)'}</td><td class="neg">${c==='lastyear'?'(79,500)':'(3,400)'}</td></tr>
+    <tr class="ind"><th>Locum and visiting consultants</th><td class="neg">${D('cl.locum','(84,600)')}</td><td>6.1%</td>
+      <td class="neg">(71,200)</td><td class="neg">${c==='lastyear'?'(58,400)':'(74,000)'}</td><td class="neg">${c==='lastyear'?'(26,200)':'(10,600)'}</td></tr>
+    <tr class="ind"><th>Consumables and lab</th><td class="neg">(173,200)</td><td>12.5%</td><td class="neg">(164,900)</td>
+      <td class="neg">${c==='lastyear'?'(141,300)':'(172,200)'}</td><td class="neg">${c==='lastyear'?'(31,900)':'(1,000)'}</td></tr>
+    <tr class="ind"><th>Rent and occupancy</th><td class="neg">(208,000)</td><td>15.0%</td><td class="neg">(208,000)</td>
+      <td class="neg">${c==='lastyear'?'(186,000)':'(208,000)'}</td><td class="${c==='lastyear'?'neg':'dim'}">${c==='lastyear'?'(22,000)':'nil'}</td></tr>
+    <tr class="ind"><th>Marketing</th><td class="neg">(41,300)</td><td>3.0%</td><td class="neg">(38,900)</td>
+      <td class="neg">${c==='lastyear'?'(29,700)':'(45,000)'}</td><td class="${c==='lastyear'?'neg':'pos'}">${c==='lastyear'?'(11,600)':'3,700'}</td></tr>
+    <tr class="ind"><th>Administration and other</th><td class="neg">(96,700)</td><td>7.0%</td><td class="neg">(92,400)</td>
+      <td class="neg">${c==='lastyear'?'(81,200)':'(98,000)'}</td><td class="${c==='lastyear'?'neg':'pos'}">${c==='lastyear'?'(15,500)':'1,300'}</td></tr>
+    <tr class="gap"><td colspan="6"></td></tr>
+    <tr class="sub"><th>EBITDA</th><td>${D('cl.ebitda','270,600')}</td><td>19.5%</td><td>271,100</td>
+      <td>${c==='lastyear'?'214,300':'271,200'}</td><td class="${c==='lastyear'?'pos':'neg'}">${c==='lastyear'?'56,300':'(600)'}</td></tr>
+    <tr class="ind"><th>Depreciation</th><td class="neg">(63,900)</td><td>4.6%</td><td class="neg">(62,700)</td>
+      <td class="neg">${c==='lastyear'?'(54,100)':'(64,000)'}</td><td class="pos">${c==='lastyear'?'(9,800)':'100'}</td></tr>
+    <tr class="tot"><th>Operating profit</th><td>206,700</td><td>14.9%</td><td>208,400</td>
+      <td>${c==='lastyear'?'160,200':'207,200'}</td><td class="${c==='lastyear'?'pos':'neg'}">${c==='lastyear'?'46,500':'(500)'}</td></tr>
+   </tbody></table></div>
+   <p class="fnote">Medical procedures are VAT exempt and aesthetic procedures are standard-rated. Nineteen encounters carry codes that could fall either side and are awaiting a stored rule.</p>`},
+  payers:{code:'03',title:'Payer mix and denial performance',note:'Where the money comes from',body:()=>`
+   <div class="stack" role="img" aria-label="Payer share: Daman 33.6%, Thiqa 21.6%, self-pay 18.2%, Sentinel Health 14.9%, other insurers 11.7%">
+    ${[['33.6',0],['21.6',1],['18.2',2],['14.9',3],['11.7',4]].map(([w,i])=>
+     `<div class="stseg" style="width:${w}%;background:${S[i]}"><span>${w}%</span></div>`).join('')}</div>
+   <div class="leg">${[['Daman',0],['Thiqa',1],['Self-pay',2],['Sentinel Health',3],['Other insurers',4]]
+     .map(([l,i])=>`<div class="leg-i"><span class="sw" style="background:${S[i]}"></span>${l}</div>`).join('')}</div>
+   <div class="tscroll"><table><thead><tr><th>Payer</th><th>Gross billed</th><th>Share</th><th>Denied</th>
+     <th>Denial rate</th><th>Cash received</th><th>Days to pay</th></tr></thead><tbody>
+    <tr><th>Daman</th><td>${D('cl.daman','486,200')}</td><td>33.6%</td><td class="neg">(31,400)</td><td class="neg">6.5%</td><td>402,700</td><td>38</td></tr>
+    <tr><th>Thiqa</th><td>312,700</td><td>21.6%</td><td class="neg">(14,200)</td><td>4.5%</td><td>281,900</td><td>44</td></tr>
+    <tr><th>Self-pay</th><td>263,000</td><td>18.2%</td><td class="dim">nil</td><td class="dim">—</td><td>263,000</td><td>0</td></tr>
+    <tr><th>Sentinel Health</th><td>${D('cl.sentinel','214,800')}</td><td>14.9%</td><td class="dim">not known</td><td class="dim">—</td><td class="neg">nil</td><td class="neg">41+</td></tr>
+    <tr><th>Other insurers</th><td>168,400</td><td>11.7%</td><td class="neg">(12,700)</td><td>7.5%</td><td>134,600</td><td>52</td></tr>
+    <tr class="tot"><th>Total</th><td>1,445,100</td><td>100.0%</td><td class="neg">(58,300)</td><td>4.9%</td><td>1,082,200</td><td>39</td></tr>
+   </tbody></table></div>
+   <p class="fnote">Denial rate is measured against insured revenue only. Sentinel Health's July remittance had not arrived at the date of this pack, so its denials and cash are estimated and will be trued up next month.</p>`},
+  practitioners:{code:'04',title:'Practitioner performance',note:'Nine practitioners · three sites',body:()=>`
+   <div class="tscroll"><table><thead><tr><th>Practitioner</th><th>Site</th><th>Encounters</th>
+     <th>Revenue</th><th>Per encounter</th><th>Utilisation</th></tr></thead><tbody>
+    ${[['Consultant A','Jumeirah','712','268,400','377',88,''],
+       ['Consultant B','Jumeirah','684','241,900','354',84,''],
+       ['Consultant C','Al Barsha','651','198,600','305',79,''],
+       ['Dentist A','Al Barsha','598','214,300','358',82,''],
+       ['Dentist B','Motor City','534','172,800','324',73,''],
+       ['Aesthetics A','Jumeirah','412','161,200','391',68,''],
+       ['GP A','Motor City','486','96,400','198',71,''],
+       ['GP B','Al Barsha','441','78,900','179',64,'warn'],
+       ['GP C','Motor City','342','12,600','37',47,'bad']]
+     .map(r=>`<tr><th>${r[0]}</th><td style="text-align:left">${r[1]}</td><td>${r[2]}</td><td>${r[3]}</td>
+      <td>${r[4]}</td><td><div class="meter"><div class="mtrack"><div class="mfill ${r[6]}" style="width:${r[5]}%"></div></div>${r[5]}.0%</div></td></tr>`).join('')}
+    <tr class="tot"><th>Total</th><td style="text-align:left">Three sites</td><td>4,860</td><td>1,445,100</td><td>297</td>
+      <td><div class="meter"><div class="mtrack"><div class="mfill" style="width:73%"></div></div>73.0%</div></td></tr>
+   </tbody></table></div>
+   <p class="fnote">Utilisation is booked chair or room hours against available hours. The floor for this client is 65.0%. One practitioner has been below it for three months.</p>`},
+  ar:{code:'05',title:'Receivables by payer',note:'At 31 July 2026',body:()=>`
+   <div class="tscroll"><table><thead><tr><th>Payer</th><th>Current</th><th>31 to 60</th><th>61 to 90</th>
+     <th>Over 90</th><th>Total</th></tr></thead><tbody>
+    <tr><th>Daman</th><td>142,800</td><td>68,400</td><td>21,300</td><td class="neg">8,900</td><td>241,400</td></tr>
+    <tr><th>Thiqa</th><td>98,600</td><td>52,700</td><td>18,400</td><td class="neg">6,200</td><td>175,900</td></tr>
+    <tr><th>Sentinel Health</th><td class="dim">nil</td><td>${D('cl.sentinel','214,800')}</td><td>41,600</td><td class="neg">12,400</td><td>268,800</td></tr>
+    <tr><th>Other insurers</th><td>61,300</td><td>38,900</td><td class="neg">27,600</td><td class="neg">19,800</td><td>147,600</td></tr>
+    <tr class="tot"><th>Total</th><td>302,700</td><td>374,800</td><td>108,900</td><td class="neg">47,300</td><td>833,700</td></tr>
+   </tbody></table></div>
+   <p class="fnote">Sentinel Health's 31 to 60 bucket is inflated because the July remittance has not arrived. On the normal pattern about AED 190,000 of it would already have cleared.</p>`},
+  cashflow:{code:'06',title:'Cash flow',note:'Condensed',body:()=>`
+   <div class="tscroll"><table><thead><tr><th>Line</th><th>July</th><th>June</th></tr></thead><tbody>
+    <tr><th>EBITDA</th><td>${D('cl.ebitda','270,600')}</td><td>271,100</td></tr>
+    <tr><th>Movement in receivables</th><td class="neg">(186,400)</td><td class="neg">(41,200)</td></tr>
+    <tr><th>Movement in payables</th><td class="pos">32,800</td><td class="pos">11,400</td></tr>
+    <tr class="sub"><th>Cash from operations</th><td>117,000</td><td>241,300</td></tr>
+    <tr><th>Capital expenditure</th><td class="neg">(48,200)</td><td class="neg">(12,900)</td></tr>
+    <tr><th>Distributions</th><td class="neg">(150,000)</td><td class="dim">nil</td></tr>
+    <tr class="tot"><th>Net movement</th><td class="neg">(81,200)</td><td class="pos">228,400</td></tr>
+   </tbody></table></div>
+   <p class="fnote">The receivable movement is almost entirely the missing Sentinel Health remittance. Cash generation is intact; collection timing is not.</p>`}
+ },
+ order:['pl','payers','practitioners','ar']
+};
+
+PACKS.trading={
+ cur:'SAR',title:'Monthly Management Pack',
+ sub:'Foodstuff import and distribution · Riyadh and Dammam · 340 active SKUs',
+ kpis:[['Revenue','SAR','6,842,000','+2.4% MoM','up','tr.rev'],
+       ['Gross margin','','22.3%','0.8pp worse','down','tr.gm'],
+       ['EBITDA','SAR','417,000','6.1% margin','down','tr.ebitda'],
+       ['Cash cycle','','85 days','+6 days','down','tr.ccc']],
+ narr:[
+  '<b>Revenue is flat and margin is drifting.</b> Revenue of SAR 6,842,000 was 2.4% ahead of June, but gross margin fell to 22.3% from 23.1%. Nine invoices to two customers were sold below landed cost, and the price list has not been refreshed since 11 March.',
+  '<b>The cash cycle is the real story.</b> Stock is turning in 74 days, customers pay in 63 and suppliers are paid in 52, so 85 days of trading sits outside the bank. Six of the six-day deterioration is receivables.',
+  '<b>One customer is 31% of the book and 127 days late.</b> SAR 4,309,000 is now past 120 days with a single counterparty. The expected credit loss provision has not been recalculated since May, and on any reasonable basis it is understated.',
+  '<b>USD exposure is partly uncovered.</b> USD 127,000 of payables falling due within 60 days has no forward cover, worth SAR 96,300 at the current rate. Confirmations for the covered portion are still outstanding.'],
+ sections:{
+  pl:{code:'02',title:'Profit and loss',note:'SAR · net of VAT',body:c=>`
+   <div class="tscroll"><table><thead><tr><th>Line</th><th>July</th><th>% rev</th><th>June</th>
+    <th>${c==='lastyear'?'Jul 2025':'Budget'}</th><th>Variance</th></tr></thead><tbody>
+    <tr class="sub"><th>Revenue</th><td>${D('tr.rev','6,842,000')}</td><td>100.0%</td><td>6,681,000</td>
+      <td>${c==='lastyear'?'5,914,000':'7,100,000'}</td><td class="${c==='lastyear'?'pos':'neg'}">${c==='lastyear'?'928,000':'(258,000)'}</td></tr>
+    <tr class="ind"><th>Cost of sales</th><td class="neg">${D('tr.cogs','(5,318,000)')}</td><td>77.7%</td><td class="neg">(5,138,000)</td>
+      <td class="neg">${c==='lastyear'?'(4,562,000)':'(5,467,000)'}</td><td class="${c==='lastyear'?'neg':'pos'}">${c==='lastyear'?'(756,000)':'149,000'}</td></tr>
+    <tr class="sub"><th>Gross profit</th><td>${D('tr.gm','1,524,000')}</td><td>22.3%</td><td>1,543,000</td>
+      <td>${c==='lastyear'?'1,352,000':'1,633,000'}</td><td class="${c==='lastyear'?'pos':'neg'}">${c==='lastyear'?'172,000':'(109,000)'}</td></tr>
+    <tr class="gap"><td colspan="6"></td></tr>
+    <tr class="ind"><th>Salaries</th><td class="neg">(486,000)</td><td>7.1%</td><td class="neg">(478,000)</td>
+      <td class="neg">${c==='lastyear'?'(421,000)':'(490,000)'}</td><td class="pos">${c==='lastyear'?'(65,000)':'4,000'}</td></tr>
+    <tr class="ind"><th>Warehouse and logistics</th><td class="neg">(214,700)</td><td>3.1%</td><td class="neg">(208,400)</td>
+      <td class="neg">${c==='lastyear'?'(186,200)':'(210,000)'}</td><td class="neg">${c==='lastyear'?'(28,500)':'(4,700)'}</td></tr>
+    <tr class="ind"><th>Selling and distribution</th><td class="neg">(138,400)</td><td>2.0%</td><td class="neg">(134,900)</td>
+      <td class="neg">${c==='lastyear'?'(119,600)':'(142,000)'}</td><td class="pos">${c==='lastyear'?'(18,800)':'3,600'}</td></tr>
+    <tr class="ind"><th>Administration</th><td class="neg">(121,600)</td><td>1.8%</td><td class="neg">(118,300)</td>
+      <td class="neg">${c==='lastyear'?'(104,800)':'(124,000)'}</td><td class="pos">${c==='lastyear'?'(16,800)':'2,400'}</td></tr>
+    <tr class="ind"><th>Foreign exchange loss</th><td class="neg">${D('tr.fx','(62,300)')}</td><td>0.9%</td><td class="neg">(38,900)</td>
+      <td class="neg">${c==='lastyear'?'(21,400)':'nil'}</td><td class="neg">${c==='lastyear'?'(40,900)':'(62,300)'}</td></tr>
+    <tr class="ind"><th>Provision for doubtful debts</th><td class="neg">${D('tr.ecl','(84,000)')}</td><td>1.2%</td><td class="neg">(42,000)</td>
+      <td class="neg">${c==='lastyear'?'(36,000)':'(50,000)'}</td><td class="neg">${c==='lastyear'?'(48,000)':'(34,000)'}</td></tr>
+    <tr class="gap"><td colspan="6"></td></tr>
+    <tr class="sub"><th>EBITDA</th><td>${D('tr.ebitda','417,000')}</td><td>6.1%</td><td>522,500</td>
+      <td>${c==='lastyear'?'463,000':'517,000'}</td><td class="neg">${c==='lastyear'?'(46,000)':'(100,000)'}</td></tr>
+    <tr class="ind"><th>Depreciation</th><td class="neg">(96,400)</td><td>1.4%</td><td class="neg">(94,800)</td>
+      <td class="neg">${c==='lastyear'?'(88,200)':'(97,000)'}</td><td class="pos">${c==='lastyear'?'(8,200)':'600'}</td></tr>
+    <tr class="tot"><th>Operating profit</th><td>320,600</td><td>4.7%</td><td>427,700</td>
+      <td>${c==='lastyear'?'374,800':'420,000'}</td><td class="neg">${c==='lastyear'?'(54,200)':'(99,400)'}</td></tr>
+   </tbody></table></div>
+   <p class="fnote">Foreign exchange loss arises on USD supplier payables. Fourteen export invoices are zero-rated for ZATCA purposes but only nine carry customs exit declarations.</p>`},
+  margin:{code:'03',title:'Where the margin is made and lost',note:'Top and bottom by contribution',body:()=>`
+   <div class="tscroll"><table><thead><tr><th>Customer</th><th>Revenue</th><th>Share</th><th>Cost of sales</th>
+     <th>Gross margin</th><th>Margin %</th><th>Trend</th></tr></thead><tbody>
+    <tr><th>National Retail Group</th><td>1,972,000</td><td>28.8%</td><td class="neg">(1,478,000)</td><td>494,000</td><td>25.1%</td><td class="pos">+0.4pp</td></tr>
+    <tr><th>Al Hadaya Wholesale</th><td>1,341,000</td><td>19.6%</td><td class="neg">(1,058,000)</td><td>283,000</td><td>21.1%</td><td class="neg">(1.2)pp</td></tr>
+    <tr><th>Riyadh HORECA supply</th><td>986,000</td><td>14.4%</td><td class="neg">(742,000)</td><td>244,000</td><td>24.7%</td><td class="pos">+0.2pp</td></tr>
+    <tr><th>Eastern Province chains</th><td>874,000</td><td>12.8%</td><td class="neg">(698,000)</td><td>176,000</td><td>20.1%</td><td class="neg">(0.9)pp</td></tr>
+    <tr><th>Gulf Catering Co.</th><td>642,000</td><td>9.4%</td><td class="neg">(538,000)</td><td>104,000</td><td>16.2%</td><td class="neg">(2.8)pp</td></tr>
+    <tr><th>Sahel Distributors</th><td>418,000</td><td>6.1%</td><td class="neg">(432,000)</td><td class="neg">${D('tr.negmargin','(14,000)')}</td><td class="neg">(3.3)%</td><td class="neg">(5.1)pp</td></tr>
+    <tr><th>All other customers</th><td>609,000</td><td>8.9%</td><td class="neg">(372,000)</td><td>237,000</td><td>38.9%</td><td class="pos">+0.6pp</td></tr>
+    <tr class="tot"><th>Total</th><td>6,842,000</td><td>100.0%</td><td class="neg">(5,318,000)</td><td>1,524,000</td><td>22.3%</td><td class="neg">(0.8)pp</td></tr>
+   </tbody></table></div>
+   <p class="fnote">Sahel Distributors and Gulf Catering carry the nine invoices sold below landed cost. Both are priced from a list dated 11 March 2026 while landed cost has moved since.</p>`},
+  cycle:{code:'04',title:'The cash cycle',note:'How long trading sits outside the bank',body:()=>`
+   <div class="kpis" style="margin-bottom:14px">
+    <div class="kpi"><div class="kpi-l">Days inventory</div><div class="kpi-v">74</div><div class="kpi-d neg">+3 vs June</div></div>
+    <div class="kpi"><div class="kpi-l">Days receivable</div><div class="kpi-v">63</div><div class="kpi-d neg">+6 vs June</div></div>
+    <div class="kpi"><div class="kpi-l">Days payable</div><div class="kpi-v">52</div><div class="kpi-d neg">+3 vs June</div></div>
+    <div class="kpi"><div class="kpi-l">Cash cycle</div><div class="kpi-v">85</div><div class="kpi-d neg">+6 vs June</div></div>
+   </div>
+   <div class="tscroll"><table><thead><tr><th>Component</th><th>Balance</th><th>Days</th><th>June days</th><th>Movement</th></tr></thead><tbody>
+    <tr><th>Inventory</th><td>${D('tr.inv','12,693,000')}</td><td>74</td><td>71</td><td class="neg">+3</td></tr>
+    <tr><th>Trade receivables</th><td>${D('tr.ar','13,900,000')}</td><td>63</td><td>57</td><td class="neg">+6</td></tr>
+    <tr><th>Trade payables</th><td class="neg">(8,920,000)</td><td>52</td><td>49</td><td class="pos">+3</td></tr>
+    <tr class="tot"><th>Working capital in the cycle</th><td>17,673,000</td><td>85</td><td>79</td><td class="neg">+6</td></tr>
+   </tbody></table></div>
+   <p class="fnote">Each extra day of cycle ties up roughly SAR 208,000. The six-day deterioration since June is worth about SAR 1.25m of cash.</p>`},
+  ar:{code:'05',title:'Receivables and credit risk',note:'At 31 July 2026',body:()=>`
+   <div class="tscroll"><table><thead><tr><th>Bucket</th><th>Balance</th><th>Share</th><th>Provision held</th><th>Coverage</th></tr></thead><tbody>
+    <tr><th>Current</th><td>6,284,000</td><td>45.2%</td><td class="neg">(31,000)</td><td>0.5%</td></tr>
+    <tr><th>31 to 60 days</th><td>2,108,000</td><td>15.2%</td><td class="neg">(42,000)</td><td>2.0%</td></tr>
+    <tr><th>61 to 90 days</th><td>892,000</td><td>6.4%</td><td class="neg">(71,000)</td><td>8.0%</td></tr>
+    <tr><th>91 to 120 days</th><td>307,000</td><td>2.2%</td><td class="neg">(61,000)</td><td>19.9%</td></tr>
+    <tr><th>Over 120 days</th><td class="neg">${D('tr.ar120','4,309,000')}</td><td>31.0%</td><td class="neg">(388,000)</td><td class="neg">9.0%</td></tr>
+    <tr class="tot"><th>Total</th><td>13,900,000</td><td>100.0%</td><td class="neg">(593,000)</td><td>4.3%</td></tr>
+   </tbody></table></div>
+   <p class="fnote">The over-120 bucket is one counterparty at 127 days. Coverage of 9.0% on that bucket is well below the 40% the client's own policy sets, and the provision has not been recalculated since May.</p>`},
+  fx:{code:'06',title:'Currency exposure',note:'USD payables against cover',body:()=>`
+   <div class="tscroll"><table><thead><tr><th>Item</th><th>USD</th><th>SAR equivalent</th><th>Status</th></tr></thead><tbody>
+    <tr><th>Supplier payables due within 60 days</th><td>412,000</td><td>1,545,000</td><td class="dim">Contracted</td></tr>
+    <tr><th>Forward cover confirmed</th><td class="pos">(285,000)</td><td class="pos">(1,068,750)</td><td class="dim">3 contracts</td></tr>
+    <tr class="tot"><th>Uncovered exposure</th><td>127,000</td><td>${D('tr.fx','476,250')}</td><td class="neg">At risk</td></tr>
+    <tr class="gap"><td colspan="4"></td></tr>
+    <tr><th>Sensitivity: 1% adverse move</th><td class="dim">—</td><td class="neg">(4,763)</td><td class="dim">Per month</td></tr>
+    <tr><th>Sensitivity: 5% adverse move</th><td class="dim">—</td><td class="neg">(23,813)</td><td class="dim">Per month</td></tr>
+   </tbody></table></div>
+   <p class="fnote">Forward confirmations for two of the three contracts were still outstanding at the date of this pack. The SAR is pegged to the USD, so the practical exposure is settlement timing rather than rate risk, but the client's policy requires full cover regardless.</p>`}
+ },
+ order:['pl','margin','cycle','ar','fx']
+};
+</script><script>
+const DRILLS={
+ 'fnb.rev':{t:'Net revenue',s:'AED 2,324,900 · July 2026',chain:[
+  {k:'Pack figure',v:'Net revenue',n:'AED 2,324,900',s:'Section 02, profit and loss'},
+  {k:'Ledger account',v:'4000 Sales',n:'AED 2,324,900',s:'Zoho Books, 31 journal lines'},
+  {k:'Posting',v:'Daily summary journal',n:'31 postings',s:'One per trading day, per channel, exactly as posted before Propel'},
+  {k:'Behind the posting',v:'Order-level detail',n:'95,690 orders',s:'Held in the engine, not in the ledger, so the books look unchanged'},
+  {k:'Source systems',v:'Skillet POS + 3 aggregators',n:'6 outlets',s:'31 POS files, 12 payout files'}],
+  src:[['Matched to payment','99.4%'],['Matched to settlement','99.8%'],['Matched to bank','100%'],['Needed a person','41 lines']]},
+ 'fnb.ebitda':{t:'EBITDA',s:'AED 215,300 · July 2026',chain:[
+  {k:'Pack figure',v:'EBITDA',n:'AED 215,300',s:'Revenue less prime cost less operating costs'},
+  {k:'Largest variance',v:'Prime cost over budget',n:'AED (45,900)',s:'Food 31.3% and labour 26.6% against a 57.0% combined target'},
+  {k:'Concentration',v:'DIFC outlet',n:'64.3% prime',s:'Two thirds of the group overrun sits in one outlet'},
+  {k:'Driver',v:'Roster above the opening model',n:'+1.4 FTE',s:'Review item 6, open since 21 August'}],
+  src:[['Budget EBITDA','AED 239,400'],['Actual','AED 215,300'],['Variance','AED (24,100)'],['Margin','9.3%']]},
+ 'fnb.comm':{t:'Commission and delivery fees',s:'AED 241,900 · July 2026',chain:[
+  {k:'Pack figure',v:'Commission and delivery fees',n:'AED (241,900)',s:'Section 02, operating costs'},
+  {k:'Decomposed by channel',v:'Orbit, Zephyr, Nimbus',n:'3 aggregators',s:'Each payout file split into commission, delivery and promotion'},
+  {k:'Largest',v:'Orbit',n:'AED (121,700)',s:'25.0% of AED 486,700'},
+  {k:'Exception raised',v:'Zephyr above contract',n:'AED 4,700',s:'25.5% charged against 24.0% contracted'}],
+  src:[['Payout files','12'],['Orders decomposed','35,940'],['Fee types separated','4'],['Unexplained','nil']]},
+ 'fnb.mdr':{t:'Card processing',s:'AED 26,000 · July 2026',chain:[
+  {k:'Pack figure',v:'Card processing (MDR)',n:'AED (26,000)',s:'Section 02, operating costs'},
+  {k:'Acquirer',v:'Levant Pay',n:'AED (18,300)',s:'Dine-in and counter, 1.6% blended'},
+  {k:'Gateway',v:'Own app and pickup',n:'AED (7,700)',s:'3.6% including gateway fee'},
+  {k:'Checked against',v:'Stored MDR schedule',n:'Within tolerance',s:'No variance raised this month'}],
+  src:[['Transactions','62,410'],['Blended rate','1.9%'],['Contracted','1.6% to 3.8% by type'],['Variance','nil']]},
+ 'fnb.reserve':{t:'Rolling reserve',s:'AED 62,400 held · July 2026',chain:[
+  {k:'Pack figure',v:'Rolling reserve receivable',n:'AED 62,400',s:'Section 06, working capital'},
+  {k:'Previously',v:'Written off to expense',n:'AED (38,900)',s:'Prior-period effect of the outgoing bookkeeper\'s treatment'},
+  {k:'Actually',v:'Money owed, released at 90 days',n:'Nimbus terms',s:'Withheld from each settlement, released on a rolling basis'},
+  {k:'This month',v:'Withheld 24,700, released 18,200',n:'Net (6,500)',s:'Both legs now visible in the cash bridge'},
+  {k:'Decision needed',v:'Restate comparatives?',n:'Review item 2',s:'Awaiting client approval'}],
+  src:[['Balance held','AED 62,400'],['Release cycle','90 days'],['Prior-period effect','AED 38,900'],['Status','Reclassified']]},
+ 'fnb.orbit':{t:'Orbit fees',s:'AED 121,700 · July 2026',chain:[
+  {k:'Pack figure',v:'Orbit commission and fees',n:'AED (121,700)',s:'Section 04, channel mix'},
+  {k:'Payout files',v:'4 weekly files',n:'AED 486,700 gross',s:'Downloaded from the partner portal, mapped on ingest'},
+  {k:'Take rate',v:'25.0% weighted',n:'Within contract',s:'Contracted 25.0%, no variance'},
+  {k:'Orders',v:'18,940 orders',n:'AED 25.70 average',s:'Every order matched to a POS ticket'}],
+  src:[['Gross revenue','AED 486,700'],['Fees','AED (121,700)'],['Contribution','AED 365,000'],['Keeps','75.0%']]},
+ 'fnb.zephyr':{t:'Zephyr fees',s:'AED 79,700 · July 2026',chain:[
+  {k:'Pack figure',v:'Zephyr commission and fees',n:'AED (79,700)',s:'Section 04, channel mix'},
+  {k:'Payout files',v:'3 files, 2,214 orders',n:'AED 312,400 gross',s:'Every order decomposed line by line'},
+  {k:'Charged',v:'25.5% weighted',n:'AED (79,700)',s:'Consistent across all three files since May'},
+  {k:'Contracted',v:'24.0% until Feb 2027',n:'Agreement 14 Feb 2026',s:'Stored against the client, checked on every ingest'},
+  {k:'The finding',v:'1.5 points over',n:'AED 4,700 recoverable',s:'Claim raised 18 August, review item 1'}],
+  src:[['Orders','2,214'],['Charged','25.5%'],['Contracted','24.0%'],['Recoverable','AED 4,700']]},
+ 'cl.billed':{t:'Gross billed',s:'AED 1,445,100 · July 2026',chain:[
+  {k:'Pack figure',v:'Gross billed',n:'AED 1,445,100',s:'Section 02, before denials'},
+  {k:'Encounters',v:'4,860 encounters',n:'AED 297 average',s:'Three sites, nine practitioners'},
+  {k:'Split',v:'Insured 81.8%, self-pay 18.2%',n:'5 payers',s:'Self-pay below the 25.0% covenant floor'},
+  {k:'Source',v:'Clinic PMS daily export',n:'31 files',s:'Matched to invoices raised in Zoho Books'},
+  {k:'Gap found',v:'14 encounters with no invoice',n:'AED 11,350',s:'Review item 3, open'}],
+  src:[['Encounters','4,860'],['Invoiced','4,846'],['Unbilled','14'],['Value at risk','AED 11,350']]},
+ 'cl.denial':{t:'Denials and write-offs',s:'AED 58,300 · July 2026',chain:[
+  {k:'Pack figure',v:'Denials and write-offs',n:'AED (58,300)',s:'4.9% of insured revenue'},
+  {k:'Concentrated in',v:'Procedure code 99213',n:'AED (38,600)',s:'22.4% denial rate against a 7.1% trailing average'},
+  {k:'Site',v:'Al Barsha',n:'412 encounters',s:'92 denied'},
+  {k:'Starts',v:'3 July 2026',n:'Coding template change',s:'The date the new template went live'},
+  {k:'Recoverable',v:'Resubmittable',n:'AED 38,600',s:'Review item 1, awaiting a decision on provisioning'}],
+  src:[['Insured revenue','AED 1,182,100'],['Denied','AED 58,300'],['Denial rate','4.9%'],['June','3.8%']]},
+ 'cl.ebitda':{t:'EBITDA',s:'AED 270,600 · July 2026',chain:[
+  {k:'Pack figure',v:'EBITDA',n:'AED 270,600',s:'19.5% of net revenue'},
+  {k:'Flat against June',v:'AED 271,100 in June',n:'AED (500)',s:'Revenue grew, denials absorbed it'},
+  {k:'Cost pressure',v:'Locum and visiting',n:'AED (84,600)',s:'Up AED 13,400 on June, agency rate rose 6%'},
+  {k:'Estimate in play',v:'Locum accrual on June rates',n:'AED 16,200',s:'Review item 9, open'}],
+  src:[['Budget','AED 271,200'],['Actual','AED 270,600'],['Variance','AED (600)'],['Margin','19.5%']]},
+ 'cl.locum':{t:'Locum and visiting consultants',s:'AED 84,600 · July 2026',chain:[
+  {k:'Pack figure',v:'Locum and visiting',n:'AED (84,600)',s:'6.1% of net revenue'},
+  {k:'Invoiced',v:'AED 68,400',n:'Received to date',s:'Agency invoices arrive around the 10th'},
+  {k:'Accrued',v:'AED 16,200',n:'Estimate',s:'Based on June rates'},
+  {k:'Known change',v:'Agency rate up 6%',n:'Effective 1 July',s:'Notified but not yet invoiced, review item 9'}],
+  src:[['Invoiced','AED 68,400'],['Accrued','AED 16,200'],['Rate basis','June'],['Notified increase','6%']]},
+ 'cl.daman':{t:'Daman billing',s:'AED 486,200 · July 2026',chain:[
+  {k:'Pack figure',v:'Daman gross billed',n:'AED 486,200',s:'33.6% of gross billing'},
+  {k:'Claims',v:'1,624 claims submitted',n:'AED 486,200',s:'Matched to encounters in the PMS'},
+  {k:'Denied',v:'AED (31,400)',n:'6.5% denial rate',s:'Above the 4.1% average for this payer'},
+  {k:'Cash received',v:'AED 402,700',n:'38 days average',s:'Matched to the Mashreq statement line by line'}],
+  src:[['Claims','1,624'],['Billed','AED 486,200'],['Denied','AED 31,400'],['Received','AED 402,700']]},
+ 'cl.sentinel':{t:'Sentinel Health',s:'AED 214,800 billed, nothing received',chain:[
+  {k:'Pack figure',v:'Sentinel Health gross billed',n:'AED 214,800',s:'14.9% of gross billing'},
+  {k:'Cash received',v:'Nil',n:'0 of AED 214,800',s:'July remittance has not arrived'},
+  {k:'Expected',v:'16 August',n:'11 days late',s:'Against a 30-day pattern over 14 months'},
+  {k:'Chases sent',v:'2 automatic chases',n:'19 and 25 August',s:'No response recorded'},
+  {k:'Effect on the pack',v:'Ageing overstated',n:'~AED 190,000',s:'Would normally have cleared the 31 to 60 bucket'}],
+  src:[['Billed','AED 214,800'],['Received','nil'],['Days late','11'],['Status','Estimated, true up next month']]},
+ 'tr.rev':{t:'Revenue',s:'SAR 6,842,000 · July 2026',chain:[
+  {k:'Pack figure',v:'Revenue',n:'SAR 6,842,000',s:'Section 02, profit and loss'},
+  {k:'Invoices',v:'1,842 sales invoices',n:'ZATCA e-invoicing feed',s:'Pulled by API, matched to Tally postings'},
+  {k:'Customers',v:'6 named plus other',n:'340 active SKUs',s:'Top customer is 28.8% of revenue'},
+  {k:'Export element',v:'14 zero-rated invoices',n:'5 missing evidence',s:'Review item 7, open'}],
+  src:[['Invoices','1,842'],['Matched to ledger','100%'],['Zero-rated','14'],['With evidence','9']]},
+ 'tr.cogs':{t:'Cost of sales',s:'SAR 5,318,000 · July 2026',chain:[
+  {k:'Pack figure',v:'Cost of sales',n:'SAR (5,318,000)',s:'77.7% of revenue'},
+  {k:'Landed cost',v:'Goods, freight, duty, clearing',n:'4 components',s:'Allocated to SKU on receipt'},
+  {k:'Count variance',v:'SAR (74,800)',n:'2 SKUs, Dammam',s:'Review item 2, unexplained'},
+  {k:'Goods in transit',v:'SAR 189,400',n:'2 shipments, FOB',s:'Title passed before 31 July, review item 6'}],
+  src:[['Landed cost lines','3,914'],['Count variance','SAR 74,800'],['In transit','SAR 189,400'],['Price list dated','11 Mar 2026']]},
+ 'tr.gm':{t:'Gross profit',s:'SAR 1,524,000 · July 2026',chain:[
+  {k:'Pack figure',v:'Gross profit',n:'SAR 1,524,000',s:'22.3%, down from 23.1%'},
+  {k:'Where it fell',v:'Gulf Catering and Sahel',n:'(2.8)pp and (5.1)pp',s:'Section 03, margin by customer'},
+  {k:'Root cause',v:'Stale price list',n:'11 March 2026',s:'Landed cost has moved since, prices have not'},
+  {k:'Worst case',v:'9 invoices below cost',n:'SAR (31,200)',s:'Review item 3, open'}],
+  src:[['Gross margin','22.3%'],['June','23.1%'],['Budget','23.0%'],['Below-cost invoices','9']]},
+ 'tr.ebitda':{t:'EBITDA',s:'SAR 417,000 · July 2026',chain:[
+  {k:'Pack figure',v:'EBITDA',n:'SAR 417,000',s:'6.1% of revenue'},
+  {k:'Down on June',v:'SAR (105,500)',n:'From SAR 522,500',s:'Margin slip plus two one-off charges'},
+  {k:'Charge one',v:'Foreign exchange loss',n:'SAR (62,300)',s:'Up SAR 23,400 on June'},
+  {k:'Charge two',v:'Doubtful debt provision',n:'SAR (84,000)',s:'Doubled, and still understated'}],
+  src:[['Budget','SAR 517,000'],['Actual','SAR 417,000'],['Variance','SAR (100,000)'],['Margin','6.1%']]},
+ 'tr.fx':{t:'Currency exposure',s:'USD 127,000 uncovered',chain:[
+  {k:'Pack figure',v:'Uncovered exposure',n:'SAR 476,250',s:'Section 06, currency exposure'},
+  {k:'Payables due',v:'USD 412,000',n:'Within 60 days',s:'Four suppliers, all invoiced in USD'},
+  {k:'Cover confirmed',v:'USD 285,000',n:'3 contracts',s:'2 of 3 confirmations still outstanding'},
+  {k:'Policy',v:'Full cover required',n:'Breach',s:'Review item 1, awaiting a treasury decision'}],
+  src:[['Payable','USD 412,000'],['Covered','USD 285,000'],['Uncovered','USD 127,000'],['SAR at risk','476,250']]},
+ 'tr.ecl':{t:'Provision for doubtful debts',s:'SAR 84,000 charged',chain:[
+  {k:'Pack figure',v:'Provision charge',n:'SAR (84,000)',s:'Doubled against June'},
+  {k:'Provision held',v:'SAR 593,000',n:'4.3% of the book',s:'Against SAR 13,900,000 of receivables'},
+  {k:'Over 120 days',v:'SAR 4,309,000',n:'9.0% covered',s:'Client policy requires 40%'},
+  {k:'If policy applied',v:'SAR 1,723,600',n:'SAR 1,130,600 short',s:'Review item 5, open'}],
+  src:[['Book','SAR 13,900,000'],['Provision','SAR 593,000'],['Coverage','4.3%'],['Policy coverage','40% over 120 days']]},
+ 'tr.negmargin':{t:'Sahel Distributors',s:'SAR (14,000) gross margin',chain:[
+  {k:'Pack figure',v:'Sahel gross margin',n:'SAR (14,000)',s:'Negative, (3.3)%'},
+  {k:'Revenue',v:'SAR 418,000',n:'6.1% of the book',s:'92 invoices in July'},
+  {k:'Landed cost',v:'SAR (432,000)',n:'Above selling price',s:'On 9 of the 92 invoices'},
+  {k:'Cause',v:'Price list dated 11 Mar 2026',n:'Not repriced',s:'Landed cost up 7.4% since'}],
+  src:[['Invoices','92'],['Below cost','9'],['Margin','SAR (14,000)'],['Trend','(5.1)pp']]},
+ 'tr.inv':{t:'Inventory',s:'SAR 12,693,000 · 74 days',chain:[
+  {k:'Pack figure',v:'Inventory',n:'SAR 12,693,000',s:'74 days of cost of sales'},
+  {k:'Perpetual record',v:'WMS stock listing',n:'340 SKUs',s:'Exported 25 August'},
+  {k:'Physical count',v:'31 July count sheets',n:'SAR (74,800)',s:'Below the record'},
+  {k:'Unexplained',v:'2 SKUs at Dammam',n:'No goods issue notes',s:'Review item 2, open'}],
+  src:[['Balance','SAR 12,693,000'],['Days','74'],['June days','71'],['Variance','SAR 74,800']]},
+ 'tr.ar':{t:'Trade receivables',s:'SAR 13,900,000 · 63 days',chain:[
+  {k:'Pack figure',v:'Trade receivables',n:'SAR 13,900,000',s:'63 days of revenue'},
+  {k:'Deterioration',v:'+6 days on June',n:'~SAR 1,250,000',s:'Each day of cycle is about SAR 208,000'},
+  {k:'Concentration',v:'One counterparty',n:'SAR 4,309,000',s:'31% of the book, 127 days'},
+  {k:'Provision',v:'9.0% coverage on that bucket',n:'Policy says 40%',s:'Review item 5, open'}],
+  src:[['Balance','SAR 13,900,000'],['Days','63'],['June','57'],['Over 120 days','31%']]},
+ 'tr.ar120':{t:'Over 120 days',s:'SAR 4,309,000 · one counterparty',chain:[
+  {k:'Pack figure',v:'Over 120 days',n:'SAR 4,309,000',s:'31.0% of the receivables book'},
+  {k:'Counterparty',v:'A single customer',n:'127 days',s:'Oldest invoice dated 26 March 2026'},
+  {k:'Provision held',v:'SAR 388,000',n:'9.0% coverage',s:'Client policy sets 40% for this bucket'},
+  {k:'Shortfall',v:'SAR 1,335,600',n:'If policy applied',s:'Would take EBITDA to a loss'},
+  {k:'Last reviewed',v:'May 2026',n:'3 months ago',s:'Review item 5, awaiting a decision'}],
+  src:[['Balance','SAR 4,309,000'],['Days','127'],['Provision','SAR 388,000'],['Policy','40%']]},
+ 'tr.ccc':{t:'Cash cycle',s:'85 days',chain:[
+  {k:'Pack figure',v:'Cash conversion cycle',n:'85 days',s:'Inventory 74 plus receivables 63 less payables 52'},
+  {k:'Movement',v:'+6 days on June',n:'From 79 days',s:'Almost entirely receivables'},
+  {k:'Cash effect',v:'~SAR 1,250,000',n:'Tied up',s:'At roughly SAR 208,000 per day of cycle'},
+  {k:'Driver',v:'One customer at 127 days',n:'SAR 4,309,000',s:'Review item 5'}],
+  src:[['Days inventory','74'],['Days receivable','63'],['Days payable','52'],['Cycle','85']]}
+};
+</script><script>
+const OPTIONAL={fnb:{cashflow:'a cash flow statement'},clinic:{cashflow:'a cash flow statement'},trading:{}};
+const SUGG={
+ firm:['Add a cash flow statement','Compare against last year','Shorten the commentary','Remove the working capital section','Set EBITDA to 250,000'],
+ client:['Why is my bank lower than my sales?','What does delivery actually cost me?','Which part of the business is losing money?','How much of my cash is stuck outside the bank?']};
+const ANSWERS={
+ fnb:[
+  {re:/bank.*(lower|less)|cash.*(lower|less)|sales.*bank/i,a:'Because AED 284,200 never reaches the bank. Commission and delivery fees take AED 241,900, card processing AED 26,000 and foreign exchange AED 4,900. Then timing moves another AED 87,800: reserve withheld and settlements still in transit, less what arrived from June. Sales of AED 2,324,900 became AED 2,040,700 of bank credits.',d:'fnb.rev'},
+  {re:/delivery|aggregator|orbit|zephyr|nimbus/i,a:'Aggregators were 41.6% of revenue and 90.3% of every fee you paid. Orbit keeps 25.0%, Zephyr 25.5% and Nimbus 24.0%, against 1.6% through the counter. Every AED 100 of aggregator revenue brings in AED 75 of contribution against AED 98 in store. Zephyr is also charging 1.5 points above its contract.',d:'fnb.zephyr'},
+  {re:/losing money|worst|weakest|underperform/i,a:'Sharjah Al Majaz. It is the only outlet with revenue down, at 2.1%, and it has run food cost near 32% for four months against a 30% standard with no opening ramp to explain it. DIFC has a thinner margin at 2.1%, but that is a ramp and it is improving at 18.6% a month.',d:'fnb.ebitda'},
+  {re:/stuck|outside the bank|tied up|reserve/i,a:'AED 143,700. Settlements in transit of AED 81,300, which arrived by 4 August, and AED 62,400 of rolling reserve held by Nimbus and released on a 90-day cycle. The reserve was previously written off to expense, so until this month it did not appear as money owed to you at all.',d:'fnb.reserve'}],
+ clinic:[
+  {re:/denial|denied|reject/i,a:'AED 58,300, which is 4.9% of insured revenue against 3.8% in June. Two thirds of the increase is one procedure code, 99213, where denials jumped to 22.4% from a 7.1% average. It starts on 3 July, the day the new coding template went live at Al Barsha. AED 38,600 of it is resubmittable.',d:'cl.denial'},
+  {re:/sentinel|remittance|not been paid|missing/i,a:'Sentinel Health has not sent its July remittance, so AED 214,800 of billed revenue has no cash against it. It is 11 days late against a 30-day pattern, and two chases have gone out. It also inflates your 31 to 60 day bucket by about AED 190,000, which would otherwise have cleared.',d:'cl.sentinel'},
+  {re:/practitioner|doctor|utilisation|productiv/i,a:'Eight of nine practitioners are at or near the 65% utilisation floor. One, GP C at Motor City, is at 46.8% for a third month and generates AED 37 per encounter against a AED 297 average. That is the only real outlier.',d:'cl.billed'},
+  {re:/self.?pay|covenant|mix/i,a:'Self-pay fell to 18.2% of revenue against the 25.0% floor in your bank facility, for a second consecutive month. Two months below the floor triggers a notification obligation to the lender, which is sitting in the review queue awaiting your decision.',d:'cl.billed'}],
+ trading:[
+  {re:/cash|stuck|tied up|working capital|cycle/i,a:'85 days of trading sits outside the bank: 74 days in stock, 63 waiting on customers, less 52 days you take to pay suppliers. That is six days worse than June, worth about SAR 1.25m, and almost all of it is receivables.',d:'tr.ccc'},
+  {re:/margin|profit.*fall|why.*margin/i,a:'Gross margin fell from 23.1% to 22.3%. Two customers explain it: Gulf Catering down 2.8 points and Sahel Distributors down 5.1 points and now selling at a negative margin. Both are priced off a list dated 11 March while landed cost has moved 7.4% since.',d:'tr.gm'},
+  {re:/receivable|customer.*owe|late|overdue|debt/i,a:'SAR 4,309,000, which is 31% of your receivables book, is with one customer at 127 days. You hold 9% provision against it. Your own policy sets 40% for that bucket, and applying it would take SAR 1,335,600 more to the profit and loss and put the month into a loss.',d:'tr.ar120'},
+  {re:/currency|fx|dollar|usd|hedge/i,a:'USD 127,000 of payables due within 60 days has no forward cover, worth SAR 476,250. The riyal is pegged to the dollar so the rate risk is small in practice, but your treasury policy requires full cover, and two of the three existing confirmations are still outstanding.',d:'tr.fx'}]};
+
+const INTENTS=[
+ {re:/(set|change|make|adjust|increase|reduce|raise|lower|round)\b.*\b(ebitda|revenue|profit|margin|figure|number|cost|cash|balance)/i,
+  blocked:'That would change a number, and the assistant cannot do that. Every figure here comes from matched transactions, not from this conversation. If a figure looks wrong, the route is an adjusting entry in the ledger or a review-queue decision, both of which leave a trail and go through sign-off.'},
+ {re:/(add|include|show).*(cash ?flow)/i,run:(c)=>({add:'cashflow',say:'Added the cash flow statement to the pack. It reads from the same matched transactions, so nothing else moved.'})},
+ {re:/(compare|against|versus|vs).*(last year|prior year|ly)/i,run:()=>({cmp:'lastyear',say:'Switched the comparative column from budget to the same month last year, across every table that carries one. Variances have been recalculated.'})},
+ {re:/(compare|against|versus|vs).*(budget|plan)/i,run:()=>({cmp:'budget',say:'Switched the comparative column back to budget.'})},
+ {re:/(shorten|shorter|brief|condense|trim|cut down).*(commentary|narrative|summary|writing|text)|make it brief/i,
+  run:()=>({tone:'brief',say:'Shortened the commentary to the two points that carry a decision. The full version is kept in the pack history if you want it back.'})},
+ {re:/(lengthen|longer|full|expand|restore).*(commentary|narrative|summary)/i,
+  run:()=>({tone:'full',say:'Restored the full commentary.'})},
+ {re:/(remove|drop|delete|hide|take out|exclude)\s+(the\s+)?(.+)/i,run:(c,m)=>({remove:m[3],say:null})},
+ {re:/(add|include|put back|bring back)\s+(the\s+)?(.+)/i,run:(c,m)=>({addNamed:m[3],say:null})}];
+
+const SECNAMES={pl:'profit and loss',bridge:'sales to cash bridge',channels:'channel mix',outlets:'outlet',
+ wc:'working capital',cashflow:'cash flow',payers:'payer mix',practitioners:'practitioner',ar:'receivable',
+ margin:'margin',cycle:'cash cycle',fx:'currency exposure',exceptions:'exception'};
+
+const METHOD=[
+ ['live','Ingest and mapping','A new file from a new provider is configuration, not engineering. Folder and email drop are live, and a new source is mapped by inference with a human confirming the columns.'],
+ ['live','Deterministic matching','Order to payment, payment to settlement, settlement to bank. Proven at over 90% back to the individual order on a book where 70% of rows had no shared reference. Every match is SQL, never a model.'],
+ ['live','Bank line classification','A statement goes in and every line comes out coded, with the settlement to clearing join done.'],
+ ['live','Fee decomposition','Commission, delivery, processing and reserve split into separate lines and checked against the stored contract. This is what produces the Zephyr finding in the demo.'],
+ ['build','Exception workflow','Ageing, ownership, routing and firm-tier rules (base, then firm standard, then client override) are the named blocker at firm scale. The engine raises and categorises the exceptions today; the workflow around them is being built.'],
+ ['build','The Insights layer','Business findings grouped by liquidity, profitability and growth. The measure layer reaches every number today, but the rule engine that fires \'food cost above standard for a fourth month\' is not shipped. A few findings are live because they fall straight out of reconciliation, take rate against contract being the clearest.'],
+ ['build','Accounts receivable','Invoices against receipts, unapplied receipts, credit notes and customer statement reconciliation. The canonical order and payment entities already carry most of what this needs, so it is an extension rather than a new engine.'],
+ ['build','The MIS pack','The measure layer reaches every number in these packs today. Assembling them into a branded pack is manual: a ledger export into Excel, by hand. The pack manifest and render engine are the build.'],
+ ['build','The pack assistant','Editing a pack by conversation is designed but not shipped. The boundary is fixed: it changes the manifest and the wording, never a figure.'],
+ ['build','PDF bank statement parsing','Statements are PDF in effectively all of the GCC. Parsing works per bank template; full coverage across Emirates Standard, Gulf Union Bank, Marid and the Saudi and Bahraini banks is outstanding.'],
+ ['road','Accounts payable','No supplier, vendor or bill concept exists in the engine: the canonical entities are orders, payments, transactions, settlements and bank entries. Unmatched bank debits are already detected; the invoice to match them against is what is missing.'],
+ ['road','Payroll, bills and expenses','Not built, and deferred by decision. Bill ingest, receipt capture, card feeds and the payroll register with WPS and SIF are expected to come through partners rather than be built here.'],
+ ['road','Scheduled portal pulls','Aggregator and acquirer portals have no API. Pulling them on a schedule means solving multi-factor authentication per provider, which is the hard part and is not solved.'],
+ ['road','Ledger adapters beyond Zoho and Xero','Zoho Books is live and Xero is in QA. Tally, QuickBooks, NetSuite and Wafeq are on the roadmap. Until then those clients are a file drop, which is how the demo shows them.']];
+</script><script>
+const GROUPS=[['L','Liquidity','Cash, what is owed and what is tied up'],
+              ['P','Profitability','Margin, cost and what each part earns'],
+              ['G','Growth','Mix, capacity and where the business is heading']];
+const INSIGHTS={
+ dallah:[
+  {id:'i1',g:'L',tag:'live',t:'Rolling reserve is being expensed instead of recorded as money owed',
+   cur:'AED',amt:62400,per:'held',
+   w:'Nimbus withholds a rolling reserve released after 90 days. It had been written off to expense, so the balance sheet understated what the client is owed by AED 62,400. Reclassifying it affects prior periods.',
+   ev:[['Balance held','AED 62,400'],['Prior-period effect','AED 38,900'],['Release cycle','90 days']],
+   acts:['Reclassify and restate comparatives','Reclassify from this month only','Leave as expensed, note in the pack']},
+  {id:'i2',g:'P',tag:'live',t:'Zephyr is charging 25.5% against a contracted 24.0%',
+   cur:'AED',amt:4700,per:'recoverable',
+   w:'Three payout files were decomposed order by order. Every order carries a 25.5% deduction. The signed agreement on file, dated 14 February 2026, sets 24.0% until renewal in February 2027.',
+   ev:[['Orders checked','2,214'],['Charged','25.5%'],['Contracted','24.0%'],['Since','May 2026']],
+   acts:['Raise a claim and flag in the pack','Accept and update the stored contract','Ask the client before raising it']},
+  {id:'i3',g:'P',tag:'build',t:'Sharjah Al Majaz food cost above standard for a fourth month',
+   cur:'AED',amt:5900,per:'per month',
+   w:'Food cost of 31.9% against a 30.0% standard, with no opening ramp to explain it and revenue down 2.1%. On July volume the gap is worth about AED 5,900 a month, or AED 71,000 a year.',
+   ev:[['Actual','31.9%'],['Standard','30.0%'],['Months outside','4'],['Revenue','down 2.1%']],
+   acts:['Flag and recommend a stock count','Adjust the standard for this outlet','Raise privately with the client']},
+  {id:'i4',g:'P',tag:'build',t:'DIFC roster is running above the opening model',
+   cur:'AED',amt:11200,per:'per month',
+   w:'Labour at 31.2% of revenue against 26.0% group, about 1.4 full-time equivalents above the plan agreed at opening. Normal in a ramp, but a full month is now on record and the trading pattern is known.',
+   ev:[['Labour','31.2%'],['Group','26.0%'],['FTE variance','+1.4'],['Months open','3']],
+   acts:['Note as a watch item','Raise with the client directly','Suppress until month six']},
+  {id:'i5',g:'G',tag:'build',t:'The shift to delivery is costing contribution faster than it adds revenue',
+   cur:'AED',amt:31000,per:'vs June',
+   w:'Aggregators were 41.6% of revenue and 90.3% of every fee paid. Each AED 100 of aggregator revenue returns AED 75 of contribution against AED 98 through the counter. The mix shift alone cost about AED 31,000 against June, on revenue that grew 5.8%.',
+   ev:[['Aggregator share','41.6%'],['Share of fees','90.3%'],['Counter keeps','98.4%'],['Aggregator keeps','75.0%']],
+   acts:['Include the channel economics cut','Model a delivery surcharge','Note without a recommendation']}],
+ cedar:[
+  {id:'i1',g:'L',tag:'live',t:'Sentinel Health has not sent its July remittance',
+   cur:'AED',amt:214800,per:'unmatched',
+   w:'AED 214,800 of billed revenue has no cash against it. The remittance is 11 days late against a 30-day pattern held over 14 months, and two automatic chases have gone out with no response. It also inflates the 31 to 60 day bucket by about AED 190,000.',
+   ev:[['Billed','AED 214,800'],['Received','nil'],['Days late','11'],['Chases sent','2']],
+   acts:['Estimate and true up next month','Hold the pack until it arrives','Escalate to the payer']},
+  {id:'i2',g:'L',tag:'build',t:'Self-pay has fallen below the bank covenant floor',
+   cur:'',amt:0,per:'',
+   w:'Self-pay was 18.2% of revenue against a 25.0% floor set in the facility. Two consecutive months below the floor triggers a notification obligation to the lender.',
+   ev:[['Self-pay share','18.2%'],['Covenant floor','25.0%'],['Months below','2']],
+   acts:['Add a covenant note to the pack','Notify the lender now','Confirm the covenant wording first']},
+  {id:'i3',g:'P',tag:'build',t:'Denials tripled on one procedure code',
+   cur:'AED',amt:38600,per:'at risk',
+   w:'Code 99213 shows a 22.4% denial rate against a 7.1% trailing average across 412 encounters. The pattern begins on 3 July, the date the new coding template went live at Al Barsha. The value is resubmittable if it is caught now.',
+   ev:[['Encounters','412'],['Denied','92'],['Rate','22.4% vs 7.1%'],['Starts','3 Jul 2026']],
+   acts:['Provision in full and flag for resubmission','Provision half pending appeal','Ask the clinic to review the template']},
+  {id:'i4',g:'P',tag:'live',t:'Fourteen completed encounters were never invoiced',
+   cur:'AED',amt:11350,per:'leakage',
+   w:'Fourteen encounters at Jumeirah in July have no invoice raised in the practice system, and no approved write-off behind them. Either billing was skipped or they were written off without authority.',
+   ev:[['Encounters','14'],['Site','Jumeirah'],['Value','AED 11,350'],['Approved write-offs','0']],
+   acts:['Raise invoices and post to July','Write off with client approval','Ask the clinic which applies']},
+  {id:'i5',g:'G',tag:'build',t:'One practitioner has been below the utilisation floor for three months',
+   cur:'',amt:0,per:'',
+   w:'Chair utilisation of 46.8% against a 65.0% floor, generating AED 37 per encounter against a AED 297 average. Lowest of nine on both measures, and the gap is widening rather than closing.',
+   ev:[['Utilisation','46.8%'],['Floor','65.0%'],['Months below','3'],['Rank','9 of 9']],
+   acts:['Include in the practitioner cut','Raise privately with the client','Suppress from the pack']}],
+ rasheed:[
+  {id:'i1',g:'L',tag:'build',t:'One customer is 31% of the book and 127 days late',
+   cur:'SAR',amt:4309000,per:'exposed',
+   w:'SAR 4,309,000 sits past 120 days with a single counterparty, carrying 9.0% provision against a client policy of 40% for that bucket. Applying the policy would take a further SAR 1,335,600 to the profit and loss and put the month into a loss.',
+   ev:[['Balance','SAR 4,309,000'],['Share of book','31.0%'],['Days','127'],['Coverage','9.0% vs 40%']],
+   acts:['Recalculate the provision to policy','Provide in full','Ask the client about collection status first']},
+  {id:'i2',g:'L',tag:'build',t:'The cash cycle has stretched to 85 days',
+   cur:'SAR',amt:1250000,per:'tied up',
+   w:'Stock turns in 74 days, customers pay in 63 and suppliers are paid in 52, so 85 days of trading sits outside the bank. That is six days worse than June, and each day of cycle is worth about SAR 208,000.',
+   ev:[['Inventory','74 days'],['Receivables','63 days'],['Payables','52 days'],['Movement','+6 days']],
+   acts:['Include the cash cycle section','Model a collection push','Note without a recommendation']},
+  {id:'i3',g:'L',tag:'build',t:'USD payables are partly uncovered',
+   cur:'SAR',amt:476250,per:'at risk',
+   w:'USD 127,000 of supplier payables falling due within 60 days has no forward cover. The riyal is pegged, so practical rate risk is small, but the client\'s own treasury policy requires full cover and two of three existing confirmations are still outstanding.',
+   ev:[['Payable','USD 412,000'],['Covered','USD 285,000'],['Uncovered','USD 127,000'],['Policy','Full cover']],
+   acts:['Flag for treasury and add an FX note','Recommend booking additional cover','Disclose and accept the exposure']},
+  {id:'i4',g:'P',tag:'build',t:'Nine invoices were sold below landed cost',
+   cur:'SAR',amt:31200,per:'lost margin',
+   w:'Nine invoices to two customers carry a negative gross margin after landed cost. Both are priced from a list dated 11 March 2026 while landed cost has moved 7.4% since.',
+   ev:[['Invoices','9'],['Customers','2'],['Margin','SAR (31,200)'],['Price list','11 Mar 2026']],
+   acts:['Flag with a repricing recommendation','Check landed cost allocation first','Accept as strategic accounts']},
+  {id:'i5',g:'G',tag:'build',t:'Revenue is concentrated in one customer',
+   cur:'',amt:0,per:'',
+   w:'The largest customer is 28.8% of revenue and the top three are 62.8%. Margin on the second largest is falling 1.2 points a month, which makes the concentration a profitability risk as well as a credit one.',
+   ev:[['Top customer','28.8%'],['Top three','62.8%'],['Second largest trend','(1.2)pp']],
+   acts:['Include a concentration note','Raise at the next review meeting','Note without a recommendation']}]};
+</script><script>
+const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const st={view:'portfolio',cid:null,tab:'pack',sort:{k:'default',d:1},rcf:'open',rcp:'layers',
+  dec:{},excSt:{},cfg:{},chat:{},mode:'firm'};
+
+const decOf=id=>(st.dec[id]||(st.dec[id]={}));
+const excStOf=id=>{if(!st.excSt[id]){st.excSt[id]={};(RECON[id]?.exc||[]).forEach(e=>st.excSt[id][e.id]=e.st)}return st.excSt[id]};
+const openExc=id=>RECON[id]?RECON[id].exc.filter(e=>!['resolved','written_off'].includes(excStOf(id)[e.id])).length:0;
+const openClose=id=>RECON[id]?RECON[id].close.filter(k=>!decOf(id)[k.id]).length:0;
+const openIns=id=>INSIGHTS[id]?INSIGHTS[id].filter(i=>!decOf(id)[i.id]).length:0;
+const needsPerson=c=>c.full?openExc(c.id)+openClose(c.id)+openIns(c.id):c.openN;
+const cfgFor=id=>{const c=byId(id);if(!st.cfg[id])st.cfg[id]={order:[...PACKS[c.pack].order],cmp:'budget',tone:'full'};return st.cfg[id]};
+
+const CLIENT_Q={
+ fnb:['Why is my bank lower than my sales?','What does delivery actually cost me?','Which outlet is weakest?',
+      'How much of my cash is tied up outside the bank?'],
+ clinic:['Why are denials up this month?','Which payer has not sent its remittance?','How are my practitioners performing?',
+      'Has my payer mix breached the covenant?'],
+ trading:['Where is my cash tied up?','Why did my margin fall?','Which customer is overdue?',
+      'Am I covered on my dollar exposure?']};
+
+/* ---------------- routing ---------------- */
+function show(v){st.view=v;['portfolio','client','method'].forEach(k=>$('#v-'+k).hidden=k!==v);
+  $$('#nav button').forEach(b=>b.setAttribute('aria-current',String(b.dataset.view===v)));
+  window.scrollTo({top:0,behavior:'instant'})}
+$$('#nav button').forEach(b=>b.onclick=()=>{const v=b.dataset.view;
+  if(v==='method'){renderMethod();show('method')}else{renderPortfolio();show('portfolio')}});
+$('#backBtn').onclick=()=>{renderPortfolio();show('portfolio')};
+
+/* ---------------- portfolio ---------------- */
+function uniq(k){return [...new Set(CLIENTS.map(c=>c[k]))].sort()}
+['fCountry:country','fVertical:vertical','fStage:stage'].forEach(p=>{const[el,k]=p.split(':');
+  uniq(k).forEach(v=>$('#'+el).insertAdjacentHTML('beforeend',`<option>${esc(v)}</option>`))});
+const stagePill=s=>({'Signed off':'p-done','Review':'p-work','Reconciling':'p-work','Blocked':'p-block'}[s]||'p-work');
+function filtered(){const q=$('#fSearch').value.trim().toLowerCase();
+  return CLIENTS.filter(c=>(!q||c.name.toLowerCase().includes(q)||c.owner.toLowerCase().includes(q))&&
+    (!$('#fCountry').value||c.country===$('#fCountry').value)&&
+    (!$('#fVertical').value||c.vertical===$('#fVertical').value)&&
+    (!$('#fStage').value||c.stage===$('#fStage').value))}
+function renderPortfolio(){
+  const items=CLIENTS.reduce((a,c)=>a+needsPerson(c),0);
+  const signed=CLIENTS.filter(c=>c.stage==='Signed off').length;
+  const recon=CLIENTS.reduce((a,c)=>a+c.pct,0)/CLIENTS.length;
+  const blocked=CLIENTS.filter(c=>c.stage==='Blocked').length;
+  $('#pfTiles').innerHTML=[
+   ['Clients in this sample',CLIENTS.length,'',`of ${FIRM_BOOK} on the recurring book`],
+   ['Closes signed off',`${signed}`,`of ${CLIENTS.length}`,
+     blocked?`<span class="down">${blocked} blocked</span>`:'none blocked'],
+   ['Average reconciled',n1(recon),'%','by value, across the sample'],
+   ['Needing a person',items,'',`across ${CLIENTS.filter(c=>needsPerson(c)>0).length} clients`],
+   ['Packs due this week',CLIENTS.filter(c=>c.dueSort<=22).length,'','by 22 August']
+  ].map(([l,v,u,d])=>`<div class="tile"><div class="tile-l">${l}</div>
+    <div class="tile-v">${v}${u?`<small class="after">${u}</small>`:''}</div>
+    <div class="tile-d">${d}</div></div>`).join('');
+  const rows=filtered().map(c=>({...c,openN:needsPerson(c)}))
+    .sort((a,b)=>{
+      if(st.sort.k==='default') return (b.full?1:0)-(a.full?1:0) || a.dueSort-b.dueSort;
+      const k=st.sort.k,av=a[k],bv=b[k];
+      return (typeof av==='number'?av-bv:String(av).localeCompare(String(bv)))*st.sort.d});
+  $('#fCount').textContent=`${rows.length} of ${CLIENTS.length} shown`;
+  $('#pfBody').innerHTML=rows.length?rows.map(c=>{
+    const m=c.pct>=97?'':c.pct>=85?'warn':'bad';
+    return `<tr class="${c.full?'rowlink':'rowflat'}" data-id="${c.id}"${c.full?' tabindex="0"':''}>
+     <th><div class="cname"><b>${esc(c.name)}</b><span class="${c.full?'go':''}">${
+       c.full?'Open workspace &rarr;':'Portfolio row only'}</span></div></th>
+     <td style="text-align:left">${esc(c.vertical)}</td><td style="text-align:left">${esc(c.country)}</td>
+     <td style="text-align:left" class="dim">${esc(c.ledger)}</td>
+     <td style="text-align:left"><span class="pill ${stagePill(c.stage)}">${esc(c.stage)}</span></td>
+     <td><div class="meter"><div class="mtrack"><div class="mfill ${m}" style="width:${c.pct}%"></div></div>${n1(c.pct)}%</div></td>
+     <td><span class="excn ${c.openN>8?'hot':''}">${c.openN}</span></td>
+     <td style="text-align:left">${esc(c.owner)}</td><td>${esc(c.due)}</td></tr>`}).join('')
+   :`<tr><td colspan="9"><div class="empty">No clients match those filters.</div></td></tr>`;
+  $$('#pfBody tr.rowlink').forEach(r=>{r.onclick=()=>openClient(r.dataset.id);
+    r.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();openClient(r.dataset.id)}}});
+  $('#pfNote').innerHTML=`The ${CLIENTS.filter(c=>c.full).length} clients marked
+    <b>Open workspace</b> are built out in this prototype. The rest are here to show the shape of a real
+    book and do not open.`;
+}
+$$('#pfTable thead th.sortable').forEach(th=>th.onclick=()=>{const k=th.dataset.k;
+  st.sort=st.sort.k===k?{k,d:-st.sort.d}:{k,d:1};
+  $$('#pfTable thead th').forEach(x=>x.removeAttribute('aria-sort'));
+  th.setAttribute('aria-sort',st.sort.d===1?'ascending':'descending');renderPortfolio()});
+['fSearch','fCountry','fVertical','fStage'].forEach(id=>$('#'+id).oninput=renderPortfolio);
+$('#fClear').onclick=()=>{['fSearch','fCountry','fVertical','fStage'].forEach(id=>$('#'+id).value='');renderPortfolio()};
+
+/* ---------------- client shell ---------------- */
+function openClient(id){const c=byId(id);st.cid=id;st.rcp='layers';st.rcf='open';
+  $('#cName').textContent=c.name;
+  $('#cSub').textContent=`${c.vertical} · ${c.country} · ${c.ledger} · Month ended 31 July 2026 · Owner ${c.owner}`;
+  setTab(c.full?'pack':'ingest');show('client')}
+function setTab(t){st.tab=t;
+  $$('#cTabs button').forEach(b=>b.setAttribute('aria-current',String(b.dataset.tab===t)));
+  ['ingest','ar','ap','recon','insights','pack'].forEach(k=>$('#t-'+k).hidden=k!==t);
+  ({ingest:renderIngest,ar:renderAR,ap:renderAP,recon:renderRecon,
+    insights:renderInsights,pack:renderPack})[t]();
+  syncBadges()}
+$$('#cTabs button').forEach(b=>b.onclick=()=>setTab(b.dataset.tab));
+function syncBadges(){const id=st.cid;
+  const r=openExc(id)+openClose(id),i=openIns(id);
+  $('#bRecon').textContent=r;$('#bRecon').style.display=r?'':'none';
+  $('#bIns').textContent=i;$('#bIns').style.display=i?'':'none'}
+
+/* ---------------- ingestion ---------------- */
+function renderIngest(){
+  const c=byId(st.cid),g=INGEST[st.cid];
+  if(!g){$('#igGrid').innerHTML=`<div class="src"><div class="src-n">${esc(c.ledger)}</div>
+    <div class="src-t">Not wired in this prototype</div></div>`;
+    $('#igNote').textContent='This client is a portfolio row only. Dallah Coffee Roasters, Cedar Clinic and Rasheed Trading have a full workspace.';
+    $('#igImports').innerHTML='';return}
+  const tag={api:['tg-api','Connected'],file:['tg-file','File drop'],wait:['tg-wait','Waiting']};
+  $('#igGrid').innerHTML=g.sources.map(s=>{const[t,l]=tag[s.k];
+   return `<div class="src"><div class="src-top"><div><div class="src-n">${esc(s.n)}</div>
+     <div class="src-t">${esc(s.t)}</div></div><span class="tagline ${t}">${l}</span></div>
+     <div class="src-meta"><span>${esc(s.p)}</span><span>${esc(s.rows)}</span><span>${esc(s.fresh)}</span></div></div>`}).join('');
+  const api=g.sources.filter(s=>s.k==='api').length,wait=g.sources.filter(s=>s.k==='wait').length;
+  $('#igNote').innerHTML=`${api} of ${g.sources.length} sources pull themselves. The rest are file drops, because
+    aggregator portals, practice systems and GCC bank statements have no API to connect to. ${wait?
+    `<b>${wait} source${wait>1?'s are':' is'} still outstanding</b> and the chase runs automatically.`:'All files are in.'}
+    Nothing here asks the client to change the system they already use.`;
+  $('#igImports').innerHTML=`<thead><tr><th>Batch</th><th>Date</th><th>Source</th><th>Files</th><th>Rows</th><th>State</th></tr></thead>
+    <tbody>${g.imports.map(r=>`<tr><th class="mono">${esc(r[0])}</th><td style="text-align:left">${esc(r[1])}</td>
+    <td style="text-align:left">${esc(r[2])}</td><td>${esc(r[3])}</td><td>${esc(r[4])}</td>
+    <td style="text-align:left"><span class="pill ${r[5]==='complete'?'p-done':'p-risk'}">${esc(r[5])}</span></td></tr>`).join('')}</tbody>`;
+}
+
+/* ---------------- reconciliation ---------------- */
+$$('#rcFilter button').forEach(b=>b.onclick=()=>{st.rcf=b.dataset.f;
+  $$('#rcFilter button').forEach(x=>x.setAttribute('aria-pressed',String(x===b)));renderRecon()});
+const STATUSES=['open','acknowledged','assigned','written_off','resolved'];
+const RAIL=[['MATCHING',[['layers','Match layers','']]],
+            ['LEDGER',[['grids','Canonical rows','']]],
+            ['OPEN ITEMS',[['exc','Exceptions','exc'],['close','Close adjustments','close']]],
+            ['RECONCILIATION VIEWS',[['rar','Recon \u2013 AR',''],['rap','Recon \u2013 AP','']]]];
+function setPane(p){st.rcp=p;
+  $$('#rcRail .sb-navlink').forEach(b=>b.setAttribute('aria-current',String(b.dataset.p===p)));
+  $$('#rcPanes .rcpane').forEach(el=>el.hidden=el.id!=='pane-'+p)}
+function renderRecon(){
+  const c=byId(st.cid),R=RECON[st.cid];
+  if(!R){$('#rcIntro').textContent='This client is a portfolio row only in this prototype.';
+    $('#rcRail').innerHTML='';['rcLayers','rcGrids','rcExc','rcAR','rcAP','rcClose'].forEach(i=>$('#'+i).innerHTML='');
+    $('#rcCount').textContent='';return}
+  const oe=openExc(st.cid),ok=openClose(st.cid);
+  $('#rcIntro').innerHTML=`Four match layers, then whatever could not be placed. ${c.pct}% of the month matched on the
+    rules; <b>${oe} exception${oe===1?'':'s'}</b> and <b>${ok} close adjustment${ok===1?'':'s'}</b> are left.
+    Nothing here is business judgement, that lives on the Insights tab.`;
+  $('#rcRail').innerHTML=RAIL.map(([g,items])=>`<div class="rail-g">${g}</div>`+items.map(([p,label,ct])=>{
+     const n=ct==='exc'?oe:ct==='close'?ok:null;
+     return `<button class="sb-navlink" data-p="${p}" aria-current="${st.rcp===p}">${label}
+       ${n!==null?`<span class="ct ${n?'hot':''}">${n}</span>`:''}</button>`}).join('')).join('');
+  $$('#rcRail .sb-navlink').forEach(b=>b.onclick=()=>setPane(b.dataset.p));
+  $('#rcLayers').innerHTML=R.layers.map(l=>`<div class="layer">
+    <div class="lcode">${esc(l[0])}</div>
+    <div class="lname"><b>${esc(l[1])}</b><span>pass: ${esc(l[2])}</span></div>
+    <div class="lval">${esc(l[3])}<small>${esc(l[4])}</small></div>
+    <div class="lval">${esc(l[5])}<small>needed a person</small></div></div>`).join('');
+  $('#rcGrids').innerHTML=R.grids.map(g=>`<div class="gc"><div class="gc-l">${esc(g[0])}</div>
+    <div class="gc-v">${esc(g[1])}</div><div class="gc-d">${esc(g[2])}</div></div>`).join('');
+  const sts=excStOf(st.cid);
+  let list=R.exc.filter(e=>st.rcf==='all'||!['resolved','written_off'].includes(sts[e.id]));
+  $('#rcCount').textContent=`${list.length} shown · ${oe} unresolved of ${R.exc.length}`;
+  $('#rcExc').innerHTML=list.length?list.map(e=>`<div class="exrow">
+    <div><div class="excat">${esc(e.cat)}</div><div class="exref">${esc(e.d)}</div></div>
+    <div class="exref" style="text-align:right">${esc(e.ref)}</div>
+    <div class="lval">${esc(byId(st.cid).country==='KSA'?'SAR':'AED')} ${n(e.amt)}</div>
+    <div><select class="exsel st-${sts[e.id]}" data-e="${e.id}" aria-label="Status for ${esc(e.ref)}">
+      ${STATUSES.map(s=>`<option value="${s}" ${sts[e.id]===s?'selected':''}>${s.replace('_',' ')}</option>`).join('')}
+    </select></div></div>`).join('')
+   :`<div class="empty">Nothing unresolved. Every exception has been written off or resolved.</div>`;
+  $$('#rcExc .exsel').forEach(sel=>sel.onchange=()=>{sts[sel.dataset.e]=sel.value;renderRecon();syncBadges()});
+  renderReconView('#rcRAR',ACT[st.cid].rar,'receivables');
+  renderReconView('#rcRAP',ACT[st.cid].rap,'payables');
+  $('#rcClose').innerHTML=R.close.map(k=>card(k,'k')).join('');
+  wireCards('#rcClose',renderRecon);
+  setPane(st.rcp);
+}
+
+/* ---------------- shared decision card ---------------- */
+function card(it,kind){
+  const d=decOf(st.cid)[it.id];
+  const amt=it.amt?`<div class="ic-amt">${esc(it.cur)} ${n(it.amt)}<small>${esc(it.per||'')}</small></div>`:'';
+  return `<div class="icard ${d?'done':''}">
+    <div class="ic-h"><div class="ic-t">${esc(it.t)}</div>
+      <span class="chip ${it.tag==='live'?'live':'build'}">${it.tag==='live'?'Live today':'Build'}</span>${amt}</div>
+    <div class="ic-b"><div class="ic-w">${esc(it.w)}</div>
+      <div class="ic-ev">${it.ev.map(e=>`<span class="evchip">${esc(e[0])}: ${esc(e[1])}</span>`).join('')}</div></div>
+    ${d?`<div class="ic-done">✓ ${esc(d)}<button data-undo="${it.id}">reopen</button></div>`
+      :`<div class="ic-f">${it.acts.map((a,i)=>`<button class="ibtn ${i===0?'primary':''}" data-dec="${it.id}"
+          data-v="${esc(a)}">${esc(a)}</button>`).join('')}</div>`}</div>`;
+}
+function wireCards(sel,rerender){
+  $$(sel+' [data-dec]').forEach(b=>b.onclick=()=>{decOf(st.cid)[b.dataset.dec]=b.dataset.v;rerender();syncBadges()});
+  $$(sel+' [data-undo]').forEach(b=>b.onclick=()=>{delete decOf(st.cid)[b.dataset.undo];rerender();syncBadges()});
+}
+
+/* ---------------- insights ---------------- */
+function renderInsights(){
+  const list=INSIGHTS[st.cid];
+  if(!list){$('#inIntro').textContent='This client is a portfolio row only in this prototype.';
+    $('#inTiles').innerHTML='';$('#inBody').innerHTML='';return}
+  const open=list.filter(i=>!decOf(st.cid)[i.id]);
+  const val=list.reduce((a,i)=>a+(i.amt||0),0);
+  const cur=byId(st.cid).country==='KSA'?'SAR':'AED';
+  $('#inIntro').innerHTML=`Business findings that need a person, grouped the way Meridian Advisory already frames a performance
+    review. Not reconciliation: every one of these is a judgement about the client's business.
+    <b>${open.length} of ${list.length} still open.</b>`;
+  $('#inTiles').innerHTML=[
+   ['Findings this month',list.length,'',`${open.length} awaiting a decision`],
+   ['Value at stake',n(val),cur,'across every open finding'],
+   ['Liquidity',list.filter(i=>i.g==='L').length,'','cash and what is owed'],
+   ['Profitability',list.filter(i=>i.g==='P').length,'','margin and cost'],
+   ['Growth',list.filter(i=>i.g==='G').length,'','mix and capacity']
+  ].map(([l,v,u,d])=>`<div class="tile"><div class="tile-l">${l}</div>
+    <div class="tile-v">${u?`<small>${u}</small>`:''}${v}</div><div class="tile-d">${d}</div></div>`).join('');
+  $('#inBody').innerHTML=GROUPS.map(([g,name,sub])=>{
+    const items=list.filter(i=>i.g===g); if(!items.length)return '';
+    return `<div class="iglabel"><b>${name}</b><span>${sub}</span>
+      <span class="fspacer">${items.filter(i=>!decOf(st.cid)[i.id]).length} of ${items.length} open</span></div>
+      ${items.map(i=>card(i,'i')).join('')}`}).join('');
+  wireCards('#inBody',renderInsights);
+}
+</script><script>
+/* Inline SVG only, no library, no axes, no gridlines: same convention as core/charts.py. */
+const TRENDS={
+ fnb:{t:'Net revenue, last six months',u:'AED 000',
+   v:[1982.4,2046.9,2118.7,2164.3,2198.4,2324.9],l:['Feb','Mar','Apr','May','Jun','Jul'],
+   f:x=>x.toFixed(0),note:'+17.3% over six months'},
+ clinic:{t:'Denial rate, last six months',u:'% of insured revenue',
+   v:[3.1,3.4,3.6,3.5,3.8,4.9],l:['Feb','Mar','Apr','May','Jun','Jul'],
+   f:x=>x.toFixed(1)+'%',note:'worst month on record'},
+ trading:{t:'Gross margin, last six months',u:'% of revenue',
+   v:[23.6,23.4,23.2,23.3,23.1,22.3],l:['Feb','Mar','Apr','May','Jun','Jul'],
+   f:x=>x.toFixed(1)+'%',note:'down 1.3 points'}};
+const BARS={
+ fnb:{t:'EBITDA margin by outlet',u:'target 15.0%',
+   r:[['JLT',14.0],['Dubai Marina',13.0],['Business Bay',11.5],['Al Quoz',6.0],['Sharjah Al Majaz',2.9],['DIFC',2.1]],
+   f:x=>x.toFixed(1)+'%'},
+ clinic:{t:'Revenue per practitioner',u:'AED 000',
+   r:[['Consultant A',268],['Consultant B',242],['Dentist A',214],['Consultant C',199],['Dentist B',173],
+      ['Aesthetics A',161],['GP A',96],['GP B',79],['GP C',13]],f:x=>x.toFixed(0)},
+ trading:{t:'Gross margin by customer',u:'group 22.3%',
+   r:[['All other',38.9],['National Retail',25.1],['Riyadh HORECA',24.7],['Al Hadaya',21.1],
+      ['Eastern Province',20.1],['Gulf Catering',16.2],['Sahel Distributors',-3.3]],f:x=>x.toFixed(1)+'%'}};
+function areaChart(c){
+  const W=520,H=136,pad=10,top=26;
+  const lo=Math.min(...c.v),hi=Math.max(...c.v),span=(hi-lo)||1;
+  const step=(W-pad*2)/(c.v.length-1);
+  const pts=c.v.map((v,i)=>[pad+i*step,H-pad-((v-lo)/span)*(H-pad-top)]);
+  const path='M '+pts.map(p=>`${p[0].toFixed(1)} ${p[1].toFixed(1)}`).join(' L ');
+  const area=`${path} L ${pts[pts.length-1][0].toFixed(1)} ${H} L ${pts[0][0].toFixed(1)} ${H} Z`;
+  const last=pts[pts.length-1];
+  return `<div class="chartbox"><div class="chart-t"><b>${esc(c.t)}</b><span>${esc(c.u)}</span></div>
+   <svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(c.t)}: ${c.v.map((v,i)=>c.l[i]+' '+c.f(v)).join(', ')}">
+    <path d="${area}" fill="var(--primary)" opacity=".08"></path>
+    <path d="${path}" fill="none" stroke="var(--primary)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"></path>
+    ${pts.slice(0,-1).map(p=>`<circle cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="3" fill="var(--paper)" stroke="var(--primary)" stroke-width="1.5"></circle>`).join('')}
+    <circle cx="${last[0].toFixed(1)}" cy="${last[1].toFixed(1)}" r="5" fill="var(--primary)" stroke="var(--paper)" stroke-width="2"></circle>
+    <text x="${last[0].toFixed(1)}" y="${(last[1]-12).toFixed(1)}" text-anchor="end" fill="var(--primary)"
+      font-family="JetBrains Mono, monospace" font-size="12" font-weight="500">${esc(c.f(c.v[c.v.length-1]))}</text>
+   </svg><div class="xlabels">${c.l.map(x=>`<span>${esc(x)}</span>`).join('')}</div>
+   <p class="fnote" style="margin-top:8px">${esc(c.note)}</p></div>`;
+}
+function barChart(c){
+  const vals=c.r.map(r=>r[1]),hi=Math.max(...vals,0),lo=Math.min(...vals,0),span=(hi-lo)||1;
+  const zero=(-lo/span)*100;
+  return `<div class="chartbox"><div class="chart-t"><b>${esc(c.t)}</b><span>${esc(c.u)}</span></div>
+   <div style="display:flex;flex-direction:column;gap:7px">
+   ${c.r.map(([label,v])=>{const w=Math.abs(v)/span*100,neg=v<0;
+     return `<div style="display:grid;grid-template-columns:130px minmax(0,1fr) 58px;gap:10px;align-items:center">
+      <div style="font-size:12px;color:var(--slate);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(label)}</div>
+      <div style="position:relative;height:14px;background:var(--mist);border-radius:3px">
+        <div style="position:absolute;top:0;bottom:0;left:${(neg?zero-w:zero).toFixed(2)}%;width:${w.toFixed(2)}%;
+          background:${neg?'var(--destructive)':'var(--primary)'};border-radius:3px"></div></div>
+      <div class="mono" style="font-size:12px;text-align:right;${neg?'color:var(--destructive)':''}">${esc(c.f(v))}</div>
+     </div>`}).join('')}
+   </div></div>`;
+}
+
+/* ---------------- pack ---------------- */
+function packAttention(){
+  const ins=INSIGHTS[st.cid]||[],dec=decOf(st.cid),oe=openExc(st.cid),ok=openClose(st.cid);
+  const cur=byId(st.cid).country==='KSA'?'SAR':'AED';
+  const shown=ins.filter(i=>dec[i.id]&&!/^Suppress/i.test(dec[i.id]));
+  const sup=ins.filter(i=>dec[i.id]&&/^Suppress/i.test(dec[i.id])).length;
+  const open=ins.filter(i=>!dec[i.id]);
+  return `<div class="tscroll"><table><thead><tr><th>Finding</th><th>Area</th><th>Value</th><th>Status</th></tr></thead><tbody>
+   ${ins.map(i=>`<tr><th>${esc(i.t)}</th>
+     <td style="text-align:left" class="dim">${({L:'Liquidity',P:'Profitability',G:'Growth'})[i.g]}</td>
+     <td>${i.amt?esc(i.cur)+' '+n(i.amt):'<span class="dim">—</span>'}</td>
+     <td style="text-align:left">${dec[i.id]?`<span class="pill ${/^Suppress/i.test(dec[i.id])?'p-risk':'p-done'}">${esc(dec[i.id])}</span>`
+       :'<span class="pill p-block">Awaiting your decision</span>'}</td></tr>`).join('')}
+   </tbody></table></div>
+   <p class="fnote">${shown.length} finding${shown.length===1?'':'s'} carried into this pack${sup?`, ${sup} suppressed with a reason`:''}.
+   ${open.length?`<b>${open.length} still awaiting a decision</b> and shown to the client as an open query rather than hidden.`:''}
+   Reconciliation is separate: ${oe} exception${oe===1?'':'s'} and ${ok} close adjustment${ok===1?'':'s'} remain on that tab.</p>`;
+}
+function renderPack(){
+  const c=byId(st.cid),P=PACKS[c.pack];
+  if(!P){$('#packDoc').innerHTML=`<div class="empty">No pack template wired for ${esc(c.vertical)} in this prototype.
+    The three built out are food and beverage, healthcare and trading.</div>`;
+    $('#chatLog').innerHTML='';$('#chatSug').innerHTML='';$('#chatNote').textContent='';return}
+  const cfg=cfgFor(st.cid),held=openIns(st.cid)+openExc(st.cid)+openClose(st.cid);
+  const narr=cfg.tone==='brief'?P.narr.slice(0,2):P.narr;
+  const secs=cfg.order.map((k,ix)=>{const s=P.sections[k];if(!s)return'';
+    return `<section class="sec"><div class="sec-h"><span class="sec-c">${String(ix+2).padStart(2,'0')}</span>
+      <h2>${esc(s.title)}</h2><span class="sec-n">${esc(s.note)}</span>
+      <button class="sec-rm" data-rm="${k}">Remove</button></div>${s.body(cfg.cmp)}</section>`}).join('');
+  const nx=cfg.order.length+2;
+  $('#packDoc').innerHTML=`
+   <div class="doc-mast">
+     <div class="doc-firm">Meridian Advisory<span>Chartered Accountants · ${esc(c.country)}</span></div>
+     <div class="doc-meta"><div><em>Client</em> ${esc(c.name)}</div><div><em>Period</em> Month ended 31 July 2026</div>
+       <div><em>Issued</em> ${esc(c.due)} 2026</div><div><em>Currency</em> ${esc(P.cur)}</div></div></div>
+   <div><h1 class="doc-h1">${esc(P.title)}<em>${esc(P.sub)}</em></h1></div>
+   <section class="sec"><div class="sec-h"><span class="sec-c">01</span><h2>How the month went</h2>
+     <span class="sec-n">July 2026 vs ${cfg.cmp==='lastyear'?'July 2025':'budget'}</span></div>
+     <div class="kpis">${P.kpis.map(([l,u,v,d,dir,dk])=>`<div class="kpi"><div class="kpi-l">${esc(l)}</div>
+       <div class="kpi-v">${u?`<small>${u}</small>`:''}${dk?D(dk,v):v}</div>
+       <div class="kpi-d ${dir==='up'?'pos':'neg'}">${esc(d)}</div></div>`).join('')}</div>
+     <div class="narr">${narr.map(p=>`<p>${p}</p>`).join('')}</div>
+     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:14px">
+       ${areaChart(TRENDS[c.pack])}${barChart(BARS[c.pack])}</div></section>
+   ${secs}
+   <section class="sec"><div class="sec-h"><span class="sec-c">${String(nx).padStart(2,'0')}</span>
+     <h2>Things needing your attention</h2><span class="sec-n">from the Insights tab</span></div>
+     ${packAttention()}</section>
+   <section class="sec"><div class="sec-h"><span class="sec-c">${String(nx+1).padStart(2,'0')}</span>
+     <h2>Sign-off</h2><span class="sec-n">Maker, checker, approver</span></div>
+     <div class="sigs">
+       <div class="sig"><div class="sig-r">Prepared by</div><div class="sig-w">${esc(c.owner)}</div><div class="sig-t">17 Aug 2026</div></div>
+       <div class="sig"><div class="sig-r">Reviewed by</div><div class="sig-w">S.K. · Manager</div><div class="sig-t">19 Aug 2026</div></div>
+       <div class="sig"><div class="sig-r">Approved by</div><div class="sig-w">${held?'Held':'A.R. · Partner'}</div>
+         <div class="sig-t">${held?`${held} open item${held===1?'':'s'}`:'20 Aug 2026'}</div></div>
+       <div class="sig"><div class="sig-r">Books</div><div class="sig-w">${held?'Not locked':'Closed and locked'}</div>
+         <div class="sig-t">${held?'Clear the open items to lock':'No post-close entries'}</div></div></div>
+     <p class="fnote">A pack cannot be approved while anything is open on the Reconciliation or Insights tabs. Clearing
+       those releases the approval here, which is what makes sign-off meaningful rather than decorative.</p></section>
+   <section class="sec"><div class="sec-h"><span class="sec-c">${String(nx+2).padStart(2,'0')}</span>
+     <h2>Basis of preparation</h2><span class="sec-n">Read with the numbers</span></div>
+     <p class="fnote">Management accounts prepared for internal use. Not audited, reviewed or subject to any assurance
+       procedure, and not statutory financial statements. Figures in ${esc(P.cur)}, rounded, stated net of VAT.
+       Percentages are calculated on unrounded figures so a column may not add exactly. Every figure traces to matched
+       transactions; the chain behind any underlined number is one click away.</p></section>`;
+  $$('#packDoc .d').forEach(b=>b.onclick=()=>openDrill(b.dataset.drill));
+  $$('#packDoc .sec-rm').forEach(b=>b.onclick=()=>{const k=b.dataset.rm;
+    cfg.order=cfg.order.filter(x=>x!==k);
+    pushMsg('me',`Remove the ${SECNAMES[k]||k} section`);
+    pushMsg('ai',`Removed the ${esc(SECNAMES[k]||k)} section. Nothing else moved, and it can go back at any time.`,'Pack updated');
+    renderPack()});
+  renderChat();
+}
+
+/* ---------------- chat ---------------- */
+function pushMsg(who,text,act,drill,blocked){
+  (st.chat[st.cid]||(st.chat[st.cid]=[])).push({who,text,act,drill,blocked,mode:st.mode})}
+$$('#chatMode button').forEach(b=>b.onclick=()=>{st.mode=b.dataset.m;
+  $$('#chatMode button').forEach(x=>x.setAttribute('aria-pressed',String(x===b)));renderChat()});
+function firmSuggestions(){
+  const c=byId(st.cid),P=PACKS[c.pack],cfg=cfgFor(st.cid),out=[];
+  const addable=Object.keys(P.sections).filter(k=>!cfg.order.includes(k));
+  if(addable.length)out.push(`Add the ${SECNAMES[addable[0]]||addable[0]} section`);
+  out.push(cfg.cmp==='budget'?'Compare against last year':'Compare against budget');
+  out.push(cfg.tone==='full'?'Shorten the commentary':'Restore the full commentary');
+  const rm=cfg.order[cfg.order.length-1];
+  if(rm)out.push(`Remove the ${SECNAMES[rm]||rm} section`);
+  out.push('Set EBITDA to 250,000');
+  return out;
+}
+function renderChat(){
+  const c=byId(st.cid),log=(st.chat[st.cid]||[]).filter(m=>m.mode===st.mode);
+  $('#chatNote').innerHTML=st.mode==='firm'
+   ?'You are the accountant. This changes what is <b>in</b> the pack: sections, comparatives, wording. It cannot change a figure.'
+   :'This is what your client sees. Read only. It answers from the pack and shows the transactions behind the answer.';
+  $('#chatLog').innerHTML=log.length?log.map(m=>`
+    <div class="msg ${m.who==='me'?'me':'ai'}">
+      <span class="msg-w">${m.who==='me'?(m.mode==='firm'?'Accountant':'Client'):'Assistant'}</span>
+      <div class="msg-b">${m.text}
+        ${m.act?`<div class="msg-act">✓ ${esc(m.act)}</div>`:''}
+        ${m.blocked?`<div class="msg-blocked">${esc(m.blocked)}</div>`:''}
+        ${m.drill?`<button class="msg-drill" data-d="${m.drill}">Show me the transactions ›</button>`:''}</div></div>`).join('')
+   :`<div class="empty" style="padding:26px 8px">${st.mode==='firm'
+      ?'Tell it what the pack should contain. Every prompt below works, including the last one.'
+      :'Ask what a client would ask. Every prompt below is answered from the pack, with the transactions behind it.'}</div>`;
+  const sug=st.mode==='firm'?firmSuggestions():(CLIENT_Q[c.pack]||[]);
+  $('#chatSug').innerHTML=sug.map(s=>`<button class="sug">${esc(s)}</button>`).join('');
+  $$('#chatSug .sug').forEach(b=>b.onclick=()=>{$('#chatInput').value=b.textContent;send()});
+  $$('#chatLog .msg-drill').forEach(b=>b.onclick=()=>openDrill(b.dataset.d));
+  $('#chatLog').scrollTop=$('#chatLog').scrollHeight;
+}
+function send(){
+  const el=$('#chatInput'),text=el.value.trim();if(!text)return;el.value='';
+  pushMsg('me',esc(text));
+  const c=byId(st.cid),cfg=cfgFor(st.cid),P=PACKS[c.pack];
+  if(st.mode==='client'){
+    const hit=(ANSWERS[c.pack]||[]).find(a=>a.re.test(text));
+    if(hit)pushMsg('ai',esc(hit.a),null,hit.d);
+    else pushMsg('ai','Not scripted in this prototype. The four prompts below are, and each answers from the pack with the transactions behind it.');
+    renderChat();return}
+  if(INTENTS[0].re.test(text)){pushMsg('ai','No.',null,null,INTENTS[0].blocked);renderChat();return}
+  for(const it of INTENTS.slice(1)){
+    const m=text.match(it.re);if(!m)continue;
+    const r=it.run(c,m);
+    if(r.add&&P.sections[r.add]){if(!cfg.order.includes(r.add))cfg.order.push(r.add);
+      pushMsg('ai',esc(r.say),'Pack updated');renderPack();return}
+    if(r.cmp){cfg.cmp=r.cmp;pushMsg('ai',esc(r.say),'Pack updated');renderPack();return}
+    if(r.tone){cfg.tone=r.tone;pushMsg('ai',esc(r.say),'Pack updated');renderPack();return}
+    if(r.remove!==undefined){
+      const k=Object.keys(P.sections).find(x=>cfg.order.includes(x)&&
+        (r.remove.toLowerCase().includes((SECNAMES[x]||x).split(' ')[0])||r.remove.toLowerCase().includes(x)));
+      if(k){cfg.order=cfg.order.filter(x=>x!==k);
+        pushMsg('ai',`Removed the ${esc(SECNAMES[k]||k)} section from the pack. The underlying figures are untouched, so it can go straight back.`,'Pack updated');
+        renderPack();return}
+      pushMsg('ai','I could not tell which section you meant. The pack currently holds: '+
+        cfg.order.map(x=>SECNAMES[x]||x).join(', ')+'.');renderChat();return}
+    if(r.addNamed!==undefined){
+      const k=Object.keys(P.sections).find(x=>!cfg.order.includes(x)&&
+        (r.addNamed.toLowerCase().includes((SECNAMES[x]||x).split(' ')[0])||r.addNamed.toLowerCase().includes(x)));
+      if(k){cfg.order.push(k);
+        pushMsg('ai',`Added the ${esc(SECNAMES[k]||k)} section. It reads from the same matched transactions, so nothing else moved.`,'Pack updated');
+        renderPack();return}
+      pushMsg('ai','That section is either already in the pack or not defined for this vertical. Available to add: '+
+        (Object.keys(P.sections).filter(x=>!cfg.order.includes(x)).map(x=>SECNAMES[x]||x).join(', ')||'nothing, the pack holds every section')+'.');
+      renderChat();return}}
+  pushMsg('ai','Not scripted in this prototype. What works here: adding or removing a section, switching the comparative, and shortening the commentary. Asking it to change a figure is refused by design, and worth trying.');
+  renderChat();
+}
+$('#chatForm').onsubmit=e=>{e.preventDefault();send()};
+
+/* ---------------- drill ---------------- */
+function openDrill(k){const d=DRILLS[k];if(!d)return;
+  $('#drTitle').textContent=d.t;$('#drSub').textContent=d.s;
+  $('#drBody').innerHTML=`<div class="chain">${d.chain.map(s=>`
+    <div class="step"><div class="step-rail"><div class="step-dot"></div><div class="step-line"></div></div>
+      <div class="step-b"><div class="step-k">${esc(s.k)}</div><div class="step-v">${esc(s.v)}</div>
+      <div class="step-n">${esc(s.n)}</div><div class="step-s">${esc(s.s)}</div></div></div>`).join('')}</div>
+    <div class="dr-src">${d.src.map(([a,b])=>`<div class="r"><span>${esc(a)}</span><b>${esc(b)}</b></div>`).join('')}</div>`;
+  $('#scrim').classList.add('on');$('#drawer').classList.add('on');$('#drClose').focus()}
+function closeDrill(){$('#scrim').classList.remove('on');$('#drawer').classList.remove('on')}
+$('#drClose').onclick=closeDrill;$('#scrim').onclick=closeDrill;
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeDrill()});
+
+/* ---------------- method ---------------- */
+function renderMethod(){
+  const g=(t,l)=>`<h3 style="margin:0 0 12px;font-family:'JetBrains Mono',monospace;font-size:10px;
+    letter-spacing:.13em;text-transform:uppercase;color:var(--ink-3)">${l}</h3>
+    <div class="srcgrid" style="margin-bottom:26px">${METHOD.filter(m=>m[0]===t).map(m=>`
+      <div class="src"><div class="src-top"><div class="src-n">${esc(m[1])}</div>
+        <span class="chip ${m[0]}">${t==='live'?'Live':t==='build'?'Build':'Roadmap'}</span></div>
+        <div class="src-t" style="line-height:1.6">${esc(m[2])}</div></div>`).join('')}</div>`;
+  $('#methodBody').innerHTML=`
+    <p style="margin:0 0 22px;color:var(--ink-2);max-width:72ch">A prototype that oversells costs more than it wins.
+    Everything in the four tabs you just clicked is one of the following. The split is taken from the engine's build
+    state, not from what would be convenient to claim. Reconciliation is largely live; Insights is largely build;
+    payables is not started.</p>
+    ${g('live','Working today')}${g('build','Being built')}${g('road','Roadmap, not started')}
+    <p class="fnote" style="max-width:72ch">On a settlement-heavy client the firm's own estimate is about 19 hours a
+    month. What is live today takes roughly 40% of that. With the items marked Build, roughly 60%. No firm has yet run
+    a full month on it, which is what a pilot is for.</p>`;
+}
+
+/* ---------------- boot ---------------- */
+renderPortfolio();show('portfolio');
+</script><script>
+/* ---------------- shared bits ---------------- */
+const curOf=cid=>byId(cid).country==='KSA'?'SAR':'AED';
+const M=(cid,v)=>`${curOf(cid)} ${n(v)}`;
+const sc=t=>`<span class="stat s-${String(t).toLowerCase().replace(/[^a-z]/g,'')}">${esc(t)}</span>`;
+const cards=list=>`<div class="scards">${list.map(([l,v,d,tone])=>
+  `<div class="scard"><div class="scard-l">${esc(l)}</div>
+   <div class="scard-v ${tone||''}">${v}</div><div class="scard-d">${esc(d)}</div></div>`).join('')}</div>`;
+function dcard(title,count,tools,head,rows,note){
+  return `<div class="dcard"><div class="dcard-h"><b>${esc(title)}</b>
+    ${tools?`<div class="rt">${tools}</div>`:''}
+    ${count?`<div class="cnt">${esc(count)}</div>`:''}</div>
+    <div class="tscroll"><table><thead><tr>${head}</tr></thead><tbody>${rows}</tbody></table></div></div>
+    ${note?`<p class="fnote">${note}</p>`:''}`;
+}
+const TOOLS=`<button class="btn">Filter</button><button class="btn pri">Export</button>`;
+
+/* ---------------- receivables ---------------- */
+let arPane='revenue';
+$$('#arTabs button').forEach(b=>b.onclick=()=>{arPane=b.dataset.p;renderAR()});
+function renderAR(){
+  const cid=st.cid,A=ACT[cid];
+  if(!A){$('#arBody').innerHTML='<div class="empty">Not wired for this client.</div>';return}
+  $$('#arTabs button').forEach(b=>b.setAttribute('aria-current',String(b.dataset.p===arPane)));
+  const a=A.ar,cur=curOf(cid);
+  const title={revenue:'Revenue activity',posting:'Sales posting',ageing:'Receivables ageing'}[arPane];
+  $('#arTitle').textContent=title;
+  $('#arSub').textContent={
+    revenue:`Every channel money arrives through, what it billed this period, and whether it has synced.`,
+    posting:`The summary journal posted to ${byId(cid).ledger}, exactly as the firm posts it today. Order-level detail stays in the engine.`,
+    ageing:`What is owed and how long it has been owed.`}[arPane];
+
+  if(arPane==='revenue'){
+    $('#arBody').innerHTML=cards([
+      ['Total revenue',`<small>${cur}</small>${n(a.total)}`,'Month ended 31 July 2026',''],
+      [a.unit==='Channel'?'Platforms':a.unit+'s',a.rows.length,'active this period','blue'],
+      ['Transactions',n(a.txns),'this period',''],
+      ['Pending sync',`<small>${cur}</small>${n(a.pending)}`,a.pendingLabel,'amber']
+    ])+dcard(a.unit+'s','','<span class="fnote">July 2026</span>',
+      `<th>${esc(a.unit)}</th><th>Revenue</th><th>Transactions</th><th style="text-align:left">Feed</th><th style="text-align:left">Status</th>`,
+      a.rows.map(r=>`<tr><th>${esc(r[0])}</th><td><b>${M(cid,r[1])}</b></td><td class="muted">${n(r[2])}</td>
+        <td style="text-align:left" class="muted">${esc(r[4])}</td>
+        <td style="text-align:left">${sc(r[3])}</td></tr>`).join(''),
+      `A channel is <b>Synced</b> when every day of the period is present and totals agree. <b>Partial</b> means days are missing; <b>Pending</b> means the provider has not released the file. Completeness is checked per channel per day, which is the gap that makes a month look reconciled when it is not.`);
+  }
+  if(arPane==='posting'){
+    $('#arBody').innerHTML=dcard('Sales posting',`${a.posting.length} journals · Jul 2026`,TOOLS,
+      `<th>Date</th><th style="text-align:left">Source</th><th>Gross</th><th>Fees withheld</th><th>Net posted</th><th style="text-align:left">GL account</th><th style="text-align:left">Status</th>`,
+      a.posting.map(r=>`<tr><th>${esc(r[0])}</th><td style="text-align:left">${esc(r[1])}</td>
+        <td>${M(cid,r[2])}</td><td class="${r[3]?'neg':'muted'}">${r[3]?'('+n(r[3])+')':'nil'}</td>
+        <td><b>${M(cid,r[4])}</b></td><td style="text-align:left" class="muted">${esc(r[5])}</td>
+        <td style="text-align:left">${sc(r[6])}</td></tr>`).join(''),
+      `The journal posted is the same summary the firm posts today, so the books do not change shape. Fees are decomposed underneath rather than netted into revenue, which is what makes take rate answerable.`);
+  }
+  if(arPane==='ageing'){
+    const ar=RECON[cid].ar;
+    $('#arBody').innerHTML=dcard('Receivables ageing','At 31 July 2026','',
+      `<th>Bucket</th><th>Balance</th><th>Share</th>`,
+      ar.rows.map(r=>`<tr><th>${esc(r[0])}</th><td>${esc(r[1])}</td><td class="muted">${esc(r[2])}</td></tr>`).join('')+
+      `<tr class="tot"><th>${esc(ar.total[0])}</th><td>${esc(ar.total[1])}</td><td>${esc(ar.total[2])}</td></tr>`,
+      esc(ar.note)+' '+esc(ar.extra));
+  }
+}
+
+/* ---------------- payables ---------------- */
+let apPane='bills';
+$$('#apTabs button').forEach(b=>b.onclick=()=>{apPane=b.dataset.p;renderAP()});
+function renderAP(){
+  const cid=st.cid,A=ACT[cid];
+  if(!A){$('#apBody').innerHTML='<div class="empty">Not wired for this client.</div>';return}
+  $$('#apTabs button').forEach(b=>b.setAttribute('aria-current',String(b.dataset.p===apPane)));
+  const p=A.ap,cur=curOf(cid);
+  const T={bills:'Bill activity',billpay:'Bill payment activity',txns:'Transactions activity',
+           bank:'Bank activity',payroll:'Payroll activity',ageing:'Payables ageing'}[apPane];
+  $('#apTitle').textContent=T;
+  $('#apSub').innerHTML={
+   bills:'Every supplier bill that reached the firm this period, however it arrived, with the VAT and GL account it was coded to.',
+   billpay:'What was actually paid, from which account, and what is still scheduled or held.',
+   txns:'Card and cash spend that never passes through a bill, which is where expense coding usually leaks.',
+   bank:'The bank as the engine sees it, with each line matched to something or held.',
+   payroll:'The payroll register and its transfer, including the accruals that only exist at close.',
+   ageing:'What is owed to suppliers and how long it has been owed.'}[apPane];
+
+  if(apPane==='bills'){
+    $('#apBody').innerHTML=dcard('Bill activity',`${p.bills.length} records · Jul 2026`,TOOLS,
+      `<th>Date</th><th style="text-align:left">AP channel</th><th style="text-align:left">Source</th>
+       <th style="text-align:left">Vendor</th><th style="text-align:left">Reference</th>
+       <th>Amount</th><th>VAT</th><th style="text-align:left">GL account</th><th style="text-align:left">Status</th>`,
+      p.bills.map(r=>`<tr><th>${esc(r[0])}</th><td style="text-align:left"><span class="tag">${esc(r[1])}</span></td>
+        <td style="text-align:left" class="muted">${esc(r[2])}</td><td style="text-align:left">${esc(r[3])}</td>
+        <td style="text-align:left" class="mono muted">${esc(r[4])}</td><td>${M(cid,r[5])}</td>
+        <td class="${r[6]?'':'muted'}">${r[6]?M(cid,r[6]):'—'}</td>
+        <td style="text-align:left" class="muted">${esc(r[7])}</td>
+        <td style="text-align:left">${sc(r[8])}</td></tr>`).join(''),
+      `An AP channel is how the bill arrived, not who it is from. <b>Propel Inbox</b> is a monitored email and WhatsApp number, which is how most GCC suppliers actually send a bill. Extraction proposes the vendor, VAT and GL account; a person confirms before anything posts.`);
+  }
+  if(apPane==='billpay'){
+    $('#apBody').innerHTML=dcard('Bill payment activity',`${p.billpay.length} records · Jul 2026`,TOOLS,
+      `<th>Date</th><th style="text-align:left">Method</th><th style="text-align:left">Vendor</th>
+       <th style="text-align:left">Reference</th><th>Amount</th><th style="text-align:left">Account</th><th style="text-align:left">Status</th>`,
+      p.billpay.map(r=>`<tr><th>${esc(r[0])}</th><td style="text-align:left"><span class="tag">${esc(r[1])}</span></td>
+        <td style="text-align:left">${esc(r[2])}</td><td style="text-align:left" class="mono muted">${esc(r[3])}</td>
+        <td>${M(cid,r[4])}</td><td style="text-align:left" class="muted">${esc(r[5])}</td>
+        <td style="text-align:left">${sc(r[6])}</td></tr>`).join(''),
+      `<b>Held</b> means the payment is approved but deliberately not released, usually pending a query on the bill. It is the state most payables tools do not have, and the one firms use most.`);
+  }
+  if(apPane==='txns'){
+    $('#apBody').innerHTML=dcard('Transactions activity',`${p.txns.length} records · Jul 2026`,TOOLS,
+      `<th>Date</th><th style="text-align:left">Instrument</th><th style="text-align:left">Merchant</th>
+       <th style="text-align:left">Cost centre</th><th>Amount</th><th>VAT</th>
+       <th style="text-align:left">GL account</th><th style="text-align:left">Status</th>`,
+      p.txns.map(r=>`<tr><th>${esc(r[0])}</th><td style="text-align:left" class="mono muted">${esc(r[1])}</td>
+        <td style="text-align:left">${esc(r[2])}</td><td style="text-align:left" class="muted">${esc(r[3])}</td>
+        <td>${M(cid,r[4])}</td><td class="${r[5]?'':'muted'}">${r[5]?M(cid,r[5]):'—'}</td>
+        <td style="text-align:left" class="muted">${esc(r[6])}</td>
+        <td style="text-align:left">${sc(r[7])}</td></tr>`).join(''),
+      `Card and cash spend has no bill behind it, so there is nothing to three-way match against. <b>Unmatched</b> here means no receipt has been captured, which is the single most common reason a VAT input claim gets disallowed.`);
+  }
+  if(apPane==='bank'){
+    $('#apBody').innerHTML=dcard('Bank activity',`${p.bank.length} lines · Jul 2026`,TOOLS,
+      `<th>Date</th><th style="text-align:left">Account</th><th style="text-align:left">Description</th>
+       <th style="text-align:left">Direction</th><th>Amount</th><th style="text-align:left">Status</th>`,
+      p.bank.map(r=>`<tr><th>${esc(r[0])}</th><td style="text-align:left" class="mono muted">${esc(r[1])}</td>
+        <td style="text-align:left">${esc(r[2])}</td>
+        <td style="text-align:left"><span class="tag">${esc(r[3])}</span></td>
+        <td class="${r[3]==='debit'?'neg':'pos'}">${r[3]==='debit'?'('+n(r[4])+')':n(r[4])}</td>
+        <td style="text-align:left">${sc(r[5])}</td></tr>`).join(''),
+      `Every line is classified on arrival, including from a PDF statement, which is how bank statements come in almost everywhere in the GCC. An unmatched debit is detectable today; resolving it to a supplier is what needs the payables module.`);
+  }
+  if(apPane==='payroll'){
+    $('#apBody').innerHTML=dcard('Payroll activity',`${p.payroll.length} runs · Jul and Aug 2026`,TOOLS,
+      `<th style="text-align:left">Period</th><th style="text-align:left">Run</th><th>Gross</th>
+       <th style="text-align:left">WPS / SIF reference</th><th>Net transferred</th><th style="text-align:left">Status</th>`,
+      p.payroll.map(r=>`<tr><th style="text-align:left">${esc(r[0])}</th><td style="text-align:left">${esc(r[1])}</td>
+        <td>${M(cid,r[2])}</td><td style="text-align:left" class="mono muted">${esc(r[3])}</td>
+        <td class="${r[4]==='—'?'muted':''}">${r[4]==='—'?'—':M(cid,r[4])}</td>
+        <td style="text-align:left">${sc(r[5])}</td></tr>`).join(''),
+      `The WPS reference is what ties a payroll run to the bank transfer that discharged it. Accruals carry no reference because no money moved: they exist only because the period closed.`);
+  }
+  if(apPane==='ageing'){
+    const rows=[['Current',.62],['31 to 60 days',.24],['61 to 90 days',.09],['Over 90 days',.05]];
+    const tot={dallah:612300,cedar:284600,rasheed:8920000}[cid];
+    $('#apBody').innerHTML=dcard('Payables ageing','At 31 July 2026','',
+      `<th>Bucket</th><th>Balance</th><th>Share</th>`,
+      rows.map(([l,f],i)=>`<tr><th>${l}</th><td class="${i>1?'neg':''}">${M(cid,Math.round(tot*f))}</td>
+        <td class="muted">${(f*100).toFixed(1)}%</td></tr>`).join('')+
+      `<tr class="tot"><th>Trade payables</th><td>${M(cid,tot)}</td><td>100.0%</td></tr>`,
+      `Ageing is only as good as the bills that reached the firm. Until the payables module lands, anything a supplier has not emailed is invisible, which is why the search for unrecorded liabilities is still a manual procedure at close.`);
+  }
+}
+
+/* ---------------- recon views ---------------- */
+function renderReconView(sel,R,what){
+  const cid=st.cid,rate=r=>r[2]?Math.round(r[3]/r[2]*100):0;
+  const el=$(sel); if(!el||!R)return;
+  el.innerHTML=cards([
+    [`Total ${what==='payables'?'AP':'AR'} items`,R.items,`across ${R.layers.length} layers`,''],
+    ['Auto-matched',R.auto,'at or above 90% confidence','green'],
+    ['Manual match',R.manual,'reviewed by the team','violet'],
+    ['Unmatched',R.un,R.un?'require action':'nothing outstanding',R.un?'red':'green']
+  ])+dcard('Recon layer summary','','',
+    `<th>Layer</th><th>Total pairs</th><th>Matched</th><th>Manual</th><th>Unmatched</th><th>Match rate</th>`,
+    R.layers.map(r=>{const pc=rate(r);
+      return `<tr><th><span class="dot" style="background:${r[1]}"></span>${esc(r[0])}</th>
+        <td>${n(r[2])}</td><td class="pos">${n(r[3])}</td>
+        <td style="color:#7c3aed">${n(r[4])}</td>
+        <td class="${r[5]?'neg':'muted'}">${n(r[5])}</td>
+        <td><div class="rate"><div class="rate-t"><div class="rate-f" style="width:${pc}%;
+          background:${pc>=85?'var(--moss)':pc>=50?'var(--primary)':'var(--destructive)'}"></div></div>${pc}%</div></td></tr>`}).join(''),
+    what==='payables'
+      ? `Every pair here is what the module <b>would</b> produce. The engine has no supplier or bill entity today, so the low match rates are honest: bank debits are detected, but there is no invoice to match them against.`
+      : `Match rate is pairs matched by rule, before a person touches anything. A layer below 50% is not a failure of matching, it is usually a missing file: see the pending channel on the Receivables tab.`);
+}
+</script>
+</body>
+</html>

@@ -16,6 +16,7 @@ export const site = {
 
 export const nav = [
   { label: "Platform", href: "/platform" },
+  { label: "Live tour", href: "/tour/" },
   { label: "For firms", href: "/firms" },
   { label: "Security", href: "/security" },
 ];
