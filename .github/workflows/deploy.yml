@@ -28,6 +28,7 @@ jobs:
         env:
           PUBLIC_SITE_URL: https://propel-fs.github.io
           PUBLIC_BASE_PATH: /website
+          PUBLIC_FORM_ENDPOINT: ${{ vars.PUBLIC_FORM_ENDPOINT }}
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist

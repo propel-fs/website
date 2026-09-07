@@ -26,12 +26,34 @@ Mono. Keep them in sync so the site and the product read as one thing.
 
 ## The demo form
 
-`src/pages/demo.astro` POSTs to `PUBLIC_FORM_ENDPOINT`. Set it to a Formspree, Basin, Lambda or
-CRM webhook URL. With it unset the form validates, then tells the visitor it is not connected and
-points them at the mailbox, so a missing endpoint fails loudly rather than silently swallowing a
-lead.
+`src/pages/demo.astro` POSTs to `PUBLIC_FORM_ENDPOINT`, a Google Apps Script web app that writes
+each submission to a Sheet and emails a notification. Leads stay inside the Propel Workspace
+account; no third party holds them.
 
-There is a honeypot field named `_company`; reject any submission that arrives with it filled.
+With the variable unset the form validates, then tells the visitor it is not connected and points
+them at the mailbox, so a missing endpoint fails loudly rather than silently swallowing a lead.
+
+### Setting it up
+
+1. Create a Google Sheet in the Propel Workspace account.
+2. Extensions, then Apps Script. Replace the contents with `docs/apps-script.gs`.
+3. Deploy, then New deployment, type **Web app**. Set *Execute as* to **Me** and *Who has access*
+   to **Anyone**. Authorise when prompted.
+4. Copy the `/exec` URL.
+5. In the repo, Settings, Secrets and variables, Actions, Variables, add
+   `PUBLIC_FORM_ENDPOINT` with that URL. It is not a secret: the URL ends up in the page source
+   either way, since it is the form action.
+6. Re-run the deploy workflow.
+
+Editing the script later needs a **new deployment version**, not just a save. Saving alone leaves
+the previously deployed version serving, which is the usual reason a change appears to do nothing.
+
+The request is sent as `application/x-www-form-urlencoded` deliberately. That content type is
+CORS-safelisted, so the browser skips the preflight `OPTIONS` request, which Apps Script cannot
+answer. Sending JSON instead would fail in the browser while still working from curl.
+
+Spam is handled by a honeypot field named `_company`. The script accepts and silently discards any
+submission that arrives with it filled, so a bot sees success and does not retry.
 
 ## Deploying
 
